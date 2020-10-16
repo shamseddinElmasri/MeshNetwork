@@ -106,7 +106,7 @@ int main(void)
   uint8_t pipeNumber;
   uint8_t packetLength;
 
-  printf("\n\n\n");
+  printf("\r\n");
   readAllRegisters();
 
   transceiverPrxInit();
@@ -135,9 +135,9 @@ int main(void)
 			CE_HIGH();
 			printf("Data received:\t");
 			for(int i = 0; i < packetLength; i++){
-				printf("%x", *(receivedData + i));
+				printf("%c", (char)*(receivedData + i));
 			}
-			printf("\npipe #: %d\ntotal number of bytes received: %d\n", pipeNumber, packetLength);
+			printf("\r\npipe #: %d\r\ntotal number of bytes received: %d\r\n", pipeNumber, packetLength);
 		 }
 
   }
@@ -381,6 +381,8 @@ void transceiverPrxInit(void){
 	hal_nrf_set_address(HAL_NRF_PIPE0, pipe0Addr);			// Set Rx address
 
 	hal_nrf_flush_rx();										// Flush Rx FIFO
+
+	hal_nrf_get_clear_irq_flags(); 					// Clear all interrupt flags
 
 	 CE_HIGH();										// Set chip enable bit high
 }
