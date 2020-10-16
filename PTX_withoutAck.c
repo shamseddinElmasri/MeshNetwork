@@ -63,7 +63,8 @@ static void MX_SPI2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t txData[] = {1,9,9,5,0,1,1,8,1,9,8,9,0,1,2,3,2,0,1,6,1,2,2,7,2,0,1,9,0,3,0,4};
+
+char txData[] = "Shamseddin Elmasri Mesh Network!";
 /* USER CODE END 0 */
 
 /**
@@ -115,7 +116,7 @@ int main(void)
 
   CE_LOW();
 
-  readRegisters();
+  readAllRegisters();
 
 
   /* USER CODE END 2 */
@@ -380,7 +381,7 @@ void transceiverPtxInit(void){
 	uint8_t txAddr[] = {0x61, 0x37, 0x71, 0xF4, 0x94};		// Address of destination
 	hal_nrf_set_address(HAL_NRF_TX, txAddr);				// Set Tx address
 
-	hal_nrf_write_tx_pload(txData, 32);						// Write payload to Radio
+	hal_nrf_write_tx_pload((uint8_t*)txData, 32);						// Write payload to Radio
 
 	 CE_HIGH();												// Set chip enable bit high
 }
