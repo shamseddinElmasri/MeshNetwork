@@ -113,7 +113,7 @@ int main(void)
   readAllRegisters();
 
   transceiverPrxInit();
-
+  printf("\r\n");
   readAllRegisters();
 
   /* USER CODE END 2 */
@@ -136,7 +136,7 @@ int main(void)
 		if((flag & 0x10) != 0){
 
 			hal_nrf_clear_irq_flag(HAL_NRF_MAX_RT);
-			printf("Maximum number of retransmits reached")
+			printf("Maximum number of retransmits reached");
 		}
 
 		// If Data Sent Flag is set
@@ -144,7 +144,6 @@ int main(void)
 
 			hal_nrf_clear_irq_flag(HAL_NRF_TX_DS);
 			printf("Ack packet: \"%s\" has been sent\r\n", ackMessage);
-
 		}
 
 		// If Data Ready Flag is set
@@ -169,12 +168,7 @@ int main(void)
 
 			printf("\r\npipe #: %d\r\ntotal number of bytes received: %d\r\n", pipeNumber, packetLength);
 		}
-
-
-
-
 	}
-
   }
 
   /* USER CODE END 3 */
@@ -405,6 +399,8 @@ void transceiverPrxInit(void){
 
 	hal_nrf_enable_dynamic_pl();					// Enable dynamic payload length feature
 
+	hal_nrf_setup_dyn_pl(1);						// Enable dynamic payload length for pipe0
+
 	//hal_nrf_set_rx_pload_width(0, 32);				// Set payload width
 
 	setDataRate(DATA_RATE_250KBPS);					// Set RF data rate
@@ -416,6 +412,9 @@ void transceiverPrxInit(void){
 	uint8_t pipe0Addr[] = {0x61, 0x37, 0x71, 0xF4, 0x94}; // Address of pipe 0
 
 	hal_nrf_set_address(HAL_NRF_PIPE0, pipe0Addr);			// Set Rx address
+
+	//uint8_t txAddr[] = {0x3B, 0x2D, 0x0E, 0x38, 0x77};		// Address of destination for Ack
+	//hal_nrf_set_address(HAL_NRF_TX, txAddr);				// Set Tx address for Ack
 
 	hal_nrf_flush_rx();										// Flush Rx FIFO
 
