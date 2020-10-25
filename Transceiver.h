@@ -23,8 +23,33 @@
 #define	CSN	GPIO_PIN_8
 #define	IRQ	GPIO_PIN_0
 
+#define	MYADDRESS	1
+#define PACKETLENGTH 32
+
 extern SPI_HandleTypeDef hspi2;
 
+/*
+ * enum for node address
+ */
+enum nodeAddr{
+	NODE_1	= 1,
+	NODE_2,
+	NODE_3,
+	NODE_4,
+	NODE_5,
+	NODE_6,
+	MAX_NODE
+};
+
+/*
+ * enum for packet type
+ */
+enum packetType{
+	DATA = 0,
+	ADVERTISEMENT,
+	ACK,
+	PACKET_TYPE_MAX
+};
 
 /*
  * enum for data rate (made for nRF24L01+)
@@ -50,6 +75,9 @@ void CSN_HIGH(void);
 void CE_LOW(void);
 void CE_HIGH(void);
 void setDataRate(dataRate dRate);
+void disassemblePacket(uint8_t *receivedPacket);
+uint8_t* assemblePacket(uint8_t* payload);
+uint8_t countSetBits(uint8_t n);
 
 uint8_t hal_nrf_rw(uint8_t value);
 
