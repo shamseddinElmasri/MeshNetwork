@@ -63,8 +63,8 @@ static void MX_SPI2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-char txData[] = "Shamseddin Elmasri Mesh Network!";
+uint8_t packet[32];
+char txData[26] = "Shamseddin Elmasri,Network";
 /* USER CODE END 0 */
 
 /**
@@ -102,14 +102,22 @@ int main(void)
 
   readAllRegisters();
 
+  CE_LOW();												// Set chip enable bit low
+	
   transceiverPtxInit();
+  readAllRegisters();	
+	
+  packet = assemblePacket(TxData);					// Prepare packet
+  hal_nrf_write_tx_pload((uint8_t*)txData, 32);				// Send packet
 
-  readAllRegisters();
-  for(int i = 0; i < 20; i++){
+ CE_HIGH();												// Set chip enable bit high
+	  
+ 
+  for(int i = 0; i < 10; i++){
 
-	  hal_nrf_reuse_tx();
 	  CE_LOW();
 	  HAL_Delay(4000);
+	  hal_nrf_reuse_tx();
 	  CE_HIGH();
 	  HAL_Delay(1);
   }
@@ -381,10 +389,7 @@ void transceiverPtxInit(void){
 	uint8_t txAddr[] = {0x61, 0x37, 0x71, 0xF4, 0x94};		// Address of destination
 	hal_nrf_set_address(HAL_NRF_TX, txAddr);				// Set Tx address
 
-	hal_nrf_write_tx_pload((uint8_t*)txData, 32);						// Write payload to Radio
-
-	 CE_HIGH();												// Set chip enable bit high
-}
+	}
 
 /*
 *
@@ -408,6 +413,54 @@ void setDataRate(dataRate dRate){
   }
 
 }
+
+/*
+ *
+ */
+uint8_t* assemblePacket(uint8_t* payload){
+	
+	uint8_t packet[32];
+	uint8_t checkSum = 0;
+	
+	uint8_t destAddr	= NODE_1;						// Set destination address
+	uint8_t sourceAddr 	= NODE_2;						// Set source address
+	uint8_t TTL 		= 255;							// Initialize time to live
+	uint8_t type 		= DATA;							// Set packet type
+	uint8_t packetFlags = 0b0010;							// Configure packet flag bits
+	uint8_t PID 		= 0;							// Set packet ID
+	
+	memset(packet, 0, sizeof(packet));						// Clear packet
+	
+	/* Assemble packet */
+	packet[0] = destAddr;
+	packet[1] = sourceAddr;
+	packet[2] = TTL;
+	packet[3] = type;
+	packet[4] = packetFlags;
+	packet[5] = PID;
+	
+	for(int i = 0; i < 26; i++){
+		packet[i + 6] = payload[i];
+		checkSum += countSetBits(payload[i]);					// Calculate check sum
+	}
+	packet[31] = checkSum;
+return packet;
+}
+
+/*
+ *
+ */
+uint8_t countSetBits(uint8_t n) 
+{ 
+    uint8_t count = 0; 
+    while (n) { 
+        count += n & 1; 
+        n >>= 1; 
+    } 
+    return count; 
+}
+
+
 
 /*
  *
