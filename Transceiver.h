@@ -26,6 +26,10 @@
 #define	MYADDRESS	1
 #define PACKETLENGTH 32
 
+// RF_SETUP register bit definitions for nRF24L01+
+#define CONT_WAVE	7		/**< RF_SETUP register bit 7 */
+#define RF_DR_LOW 	5		/**< RF_SETUP register bit 5 */
+
 extern SPI_HandleTypeDef hspi2;
 
 
@@ -71,11 +75,6 @@ typedef enum {
 	DATA_RATE_1MBPS,          /**< Datarate set to 1 Mbps  */
     DATA_RATE_2MBPS           /**< Datarate set to 2 Mbps  */
 } dataRate;
-
-
-// RF_SETUP register bit definitions for nRF24L01+
-#define CONT_WAVE	7		/**< RF_SETUP register bit 7 */
-#define RF_DR_LOW 	5		/**< RF_SETUP register bit 5 */
 
 
 uint8_t spiTransaction(uint8_t *tx, uint8_t *rx, uint8_t nOfBytes);
