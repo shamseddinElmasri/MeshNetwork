@@ -106,7 +106,10 @@ int main(void)
   uint8_t txPacket[32];
   char txData[25];
 
+  uint8_t ackFlag = 0;
+
   struct packetHeader pHeader;
+  struct headerFlags  hFlags;
 
 
   printf("\r\n\r\n\r\n");
@@ -169,20 +172,18 @@ int main(void)
 
 	  	case PROCESS_PACKET_STATE:
 
-	  		displayHeader(&pHeader);
+	  		hFlags = processHeader(&pHeader);
 	  		displayData(receivedData);
 
-	  		/*
-	  		if(Ack == 1){
+
+	  		if(hFlags.ackFlag == 1){
 	  			state = ACK_STATE;							// Switch to Ack state
 	  		}
 	  		else{
 	  			state = PRX_STATE;							// Switch to PRX state
-	  		}*/
+	  		}
 
 	  		CE_HIGH();
-
-	  		state = PRX_STATE;								// TO BE REMOVED!!!!!!!!
 
 	  		break;
 
@@ -603,7 +604,9 @@ void assemblePacket(char* payload, uint8_t* _packet){
  *
  */
 
-void displayHeader(const struct packetHeader *_packetHeader){
+struct headerFlags processHeader(const struct packetHeader *_packetHeader){
+
+	struct headerFlags _headerFlags;
 
 	/* Check destination address */
 	if(_packetHeader->destAddr != MYADDRESS){
@@ -635,16 +638,20 @@ void displayHeader(const struct packetHeader *_packetHeader){
 	/* Check packet flags */
 
 	if((_packetHeader->packetFlags & 0x01) != 0){
+		_headerFlags.ackFlag = 1;
 		printf("Ack is required\r\n");
 	}
 	else{
+		_headerFlags.ackFlag = 0;
 		printf("No Ack is required\r\n");
 	}
 
 	if((_packetHeader->packetFlags & 0x02) != 0){
+		_headerFlags.lastPacket = 1;
 		printf("Last packet in data stream\r\n");
 	}
 	else{
+		_headerFlags.lastPacket = 0;
 		printf("More packets in data stream \r\n");
 	}
 
@@ -657,6 +664,8 @@ void displayHeader(const struct packetHeader *_packetHeader){
 	printf("Checksum: %d\r\n", _packetHeader->checksum);
 
 	printf("\r\n");
+
+	return _headerFlags;
 }
 
 /*
