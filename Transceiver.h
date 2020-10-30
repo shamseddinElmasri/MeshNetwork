@@ -19,9 +19,10 @@
 
 
 
-#define	CE	GPIO_PIN_9
-#define	CSN	GPIO_PIN_8
-#define	IRQ	GPIO_PIN_0
+#define	CE		GPIO_PIN_9
+#define	CSN		GPIO_PIN_8
+#define	IRQ		GPIO_PIN_0
+#define PBUTTON GPIO_PIN_13
 
 #define	MYADDRESS	1
 #define PACKETLENGTH 32
