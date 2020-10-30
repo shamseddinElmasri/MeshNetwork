@@ -67,6 +67,12 @@ static void MX_SPI2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+uint32_t counter = 0;
+uint8_t routingTable[255] = {0};
+uint8_t  advCounter[255] = {0};
+
+//uint8_t timeElapsed = 0;
+
 /* USER CODE END 0 */
 
 /**
@@ -101,28 +107,33 @@ int main(void)
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
+
   uint8_t receivedPacket[32];
   uint8_t receivedData[25];
   uint8_t txPacket[32];
-  char txData[25];
+  char txData[25] = "Shamseddin Elmasri 12345";
+
 
   uint8_t ackFlag = 0;
+  uint8_t ackReceived = 0;
+  uint8_t broadcasting = 0;
+  uint8_t pushButton;
 
   struct packetHeader pHeader;
   struct headerFlags  hFlags;
 
 
-  printf("\r\n\r\n\r\n");
+ // printf("\r\n\r\n\r\n");
 
-  readAllRegisters();
+  //readAllRegisters();
 
-  transceiverPrxInit();
 
-  printf("\r\n");
 
-  readAllRegisters();
+  //printf("\r\n");
 
-  state = PRX_STATE;
+  //readAllRegisters();
+
+  state = START_STATE;
 
   /* USER CODE END 2 */
 
@@ -135,7 +146,27 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 	  switch(state){
+	  	case START_STATE:
+
+	  		transceiverInit();									// Initialize transceiver
+
+	  		state = PRX_STATE;									// Switch to PRX state
+
+	  		break;
+
 	  	case PRX_STATE:
+
+	  		/* timer will be used instead of this */
+	  		counter++;
+	  		if(counter == 500000){
+	  			broadcastRoutingTable(routingTable, txPacket);
+	  			broadcasting = 1;
+	  			state = PTX_STATE;								// Switch to PTX state to send advertisement
+	  			counter = 0;
+	  			break;
+	  		}
+	  		pushButton = HAL_GPIO_ReadPin(GPIOC,PBUTTON);
+
 	  		/* Check if packet arrived */
 	  		if(HAL_GPIO_ReadPin(GPIOC,IRQ) == 0){
 
@@ -147,14 +178,43 @@ int main(void)
 	  			hal_nrf_read_rx_pload(receivedPacket);						// Read received packet
 	  			hal_nrf_get_clear_irq_flags(); 								// Clear data ready flag
 
-	  			state = CHECK_ADDRESS_STATE;								// Switch to Check Address state
+	  			state = CHECK_TYPE_STATE;								// Switch to Check Type state
+	  		}
+	  		else if(pushButton == 0){
+	  			while(pushButton == 0){
+
+	  			}
+
+	  			state = PTX_STATE;
+	  		}
+	  		break;
+
+	  	case CHECK_TYPE_STATE:
+
+	  		pHeader = disassemblePacket(receivedData, receivedPacket);		// Disassemble packet
+
+	  		if(pHeader.type == ADVERTISEMENT){
+	  			updateRoutingTable(receivedData, pHeader.sourceAddr);
+	  			printf("Routing Table:\r\n");
+	  			for(int i = 1; i < 25; i++){
+	  				printf("%u\t%u",i, routingTable[i]);
+	  			}
+	  			CE_HIGH();
+	  			state = PRX_STATE;										// Switch to PRX state
+	  		}
+	  		else if(pHeader.type == DATA){
+
+	  			state = CHECK_ADDRESS_STATE;							// Switch to Check Address state
+	  		}
+	  		else if(pHeader.type == ACK){
+	  			ackReceived = 1;
+	  			printf("Ack packet received\r\n");
 	  		}
 	  		break;
 
 	  	case CHECK_ADDRESS_STATE:
-	  		/* Check destination address */
 
-	  		pHeader = disassemblePacket(receivedData, receivedPacket);		// Disassemble packet
+	  		/* Check destination address */
 
 	  		if(pHeader.destAddr == MYADDRESS){
 
@@ -166,40 +226,63 @@ int main(void)
 	  		else{
 
 	  			// Discard packet
-	  			state = PRX_STATE;
+	  			printf("Wrong gateway, packet dropped!\r\n");
+	  			CE_HIGH();
+	  			state = PRX_STATE;											// Switch to PRX state
 	  		}
 	  		break;
 
 	  	case PROCESS_PACKET_STATE:
 
-	  		hFlags = processHeader(&pHeader);
-	  		displayData(receivedData);
+	  		if(pHeader.checksum != calculateChecksum(receivedData)){
 
+	  			// Discard packet
+	  			printf("Checksum error, packet dropped!\r\n");
+	  			CE_HIGH();
+	  			state = PRX_STATE;
 
-	  		if(hFlags.ackFlag == 1){
-	  			state = ACK_STATE;							// Switch to Ack state
 	  		}
 	  		else{
-	  			state = PRX_STATE;							// Switch to PRX state
-	  		}
 
-	  		CE_HIGH();
+	  			hFlags = processHeader(&pHeader);
+	  			displayData(receivedData);
+
+	  			if(hFlags.ackFlag == 1){
+	  				state = ACK_STATE;							// Switch to Ack state
+	  			}
+	  			else{
+	  				CE_HIGH();
+	  				state = PRX_STATE;							// Switch to PRX state
+	  			}
+	  		}
 
 	  		break;
 
 	  	case RELAY_PACKET_STATE:
-	  		/*
-	  		gateway = checkRoutingTable();
 
-	  		if(gateway == MAX_NODE){
+	  		if(pHeader.TTL == 0){
+
 	  			// Discard packet
-	  			// Update routing table
+	  			printf("TTL reached zero, packet dropped!\r\n");
+	  			CE_HIGH();
+	  			state = PRX_STATE;											// Switch to PRX state
+
 	  		}
 	  		else{
-	  			pHeader.TTL--;
-	  			pHeader.
+
+	  			/*
+		  		new_gateway = checkRoutingTable();
+
+				// If gateway found, update header fields
+
+	  			// pHeader.TTL--;
+	  			// pHeader.gateway = new_gateway;
+
+	  			// Transmit packet
+
+	  			*/
 	  		}
-	  		*/
+
 	  		break;
 	  	case ACK_STATE:
 
@@ -210,12 +293,24 @@ int main(void)
 	  	case PTX_STATE:
 
 	  		CE_LOW();										// Enter standby-I mode
-	  		transceiverPtxInit();							// Initialize module as PTX
-	  		assemblePacket(txData, txPacket);				// Prepare packet
+	  		PTX_Mode();										// Set module as PTX
+
+	  		if(broadcasting == 0){
+
+	  			pHeader = setHeaderValues(NODE_1, NODE_1, NODE_2, 255, DATA, 0b0010, 0, 0); // Configure header fields
+	  			assemblePacket(txData, txPacket, pHeader);		// Prepare packet
+	  			ackReceived = 0;								// Reset Ack receive flag
+	  		}
 	  		hal_nrf_write_tx_pload(txPacket, 32);			// Load packet
-	  		CE_HIGH();										// Send packet
-	  		HAL_Delay(1);									// To be adjusted to 10 microseconds!!!!!!!
-	  		CE_LOW();										// Enter standby-I mode
+			CE_HIGH();										// Send packet
+
+		  	HAL_Delay(1);									// To be adjusted to 10 microseconds!!!!!!!
+
+		  	CE_LOW();										// Enter standby-I mode
+
+	  		PRX_Mode();										// Set module as PRX
+
+	  		CE_HIGH();
 	  		state = PRX_STATE;								// Switch to PRX state
 	  		break;
 
@@ -233,7 +328,8 @@ int main(void)
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void){
+void SystemClock_Config(void)
+{
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
@@ -277,7 +373,8 @@ void SystemClock_Config(void){
   * @param None
   * @retval None
   */
-static void MX_SPI2_Init(void){
+static void MX_SPI2_Init(void)
+{
 
   /* USER CODE BEGIN SPI2_Init 0 */
 
@@ -301,7 +398,8 @@ static void MX_SPI2_Init(void){
   hspi2.Init.CRCPolynomial = 7;
   hspi2.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
   hspi2.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
-  if (HAL_SPI_Init(&hspi2) != HAL_OK){
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN SPI2_Init 2 */
@@ -315,7 +413,8 @@ static void MX_SPI2_Init(void){
   * @param None
   * @retval None
   */
-static void MX_USART2_UART_Init(void){
+static void MX_USART2_UART_Init(void)
+{
 
   /* USER CODE BEGIN USART2_Init 0 */
 
@@ -349,7 +448,8 @@ static void MX_USART2_UART_Init(void){
   * @param None
   * @retval None
   */
-static void MX_GPIO_Init(void){
+static void MX_GPIO_Init(void)
+{
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
@@ -364,14 +464,8 @@ static void MX_GPIO_Init(void){
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PC0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  /*Configure GPIO pins : PC13 PC0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -393,10 +487,9 @@ static void MX_GPIO_Init(void){
 }
 
 /* USER CODE BEGIN 4 */
+
 /*
- *
  *  Read All registers
- *
  *
  *  */
 void readAllRegisters(void){
@@ -474,7 +567,9 @@ void transceiverPtxInit(void){
 /*
  *
  */
-void transceiverPrxInit(void){
+void transceiverInit(void){
+
+	 CE_LOW();										// Set chip enable bit low
 
 	HAL_Delay(100);									// Power on reset transition state
 
@@ -482,7 +577,7 @@ void transceiverPrxInit(void){
 
 	HAL_Delay(5);									// Oscillator startup delay
 
-	hal_nrf_set_irq_mode(HAL_NRF_RX_DR, true);		// Disable "Data Sent" interrupt
+	hal_nrf_set_irq_mode(HAL_NRF_RX_DR, true);		// Enable "Data Ready" interrupt
 	hal_nrf_set_irq_mode(HAL_NRF_TX_DS, false);		// Disable "Data Sent" interrupt
 	hal_nrf_set_irq_mode(HAL_NRF_MAX_RT, false);	// Disable "Max Number of Retransmits" interrupt
 
@@ -507,10 +602,15 @@ void transceiverPrxInit(void){
 	hal_nrf_set_rf_channel(16);						// Set RF channel
 
 	uint8_t pipe0Addr[] = {0x61, 0x37, 0x71, 0xF4, 0x94}; // Address of pipe 0
-
 	hal_nrf_set_address(HAL_NRF_PIPE0, pipe0Addr);			// Set Rx address
 
+	uint8_t txAddr[] = {0x61, 0x37, 0x71, 0xF4, 0x94};		// Address of destination
+	hal_nrf_set_address(HAL_NRF_TX, txAddr);				// Set Tx address
+
+
 	hal_nrf_flush_rx();										// Flush Rx FIFO
+
+	hal_nrf_flush_tx();										// Flush TX FIFO
 
 	hal_nrf_get_clear_irq_flags(); 					// Clear all interrupt flags
 
@@ -571,34 +671,25 @@ struct packetHeader disassemblePacket(uint8_t *receivedData, uint8_t *receivedPa
 /*
  *
  */
-void assemblePacket(char* payload, uint8_t* _packet){
-
-	uint8_t checkSum = 0;
-
-	uint8_t destAddr	= NODE_1;						// Set destination address
-	uint8_t gateway		= NODE_1;						// Set gateway node address
-	uint8_t sourceAddr 	= NODE_2;						// Set source address
-	uint8_t TTL 		= 255;							// Initialize time to live
-	uint8_t type 		= DATA;							// Set packet type
-	uint8_t packetFlags = 0b0010;						// Configure packet flag bits
-	uint8_t PID 		= 0;							// Set packet ID
+void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader pHeader){
 
 	memset(_packet, 0, sizeof(_packet));						// Clear packet
 
-	/* Assemble packet */
-	_packet[0] = destAddr;
-	_packet[1] = gateway;
-	_packet[2] = sourceAddr;
-	_packet[3] = TTL;
-	_packet[4] = type;
-	_packet[5] = packetFlags;
-	_packet[6] = PID;
+	/* Assemble packet header fields */
+	_packet[0] = pHeader.destAddr;
+	_packet[1] = pHeader.gateway;
+	_packet[2] = pHeader.sourceAddr;
+	_packet[3] = pHeader.TTL;
+	_packet[4] = pHeader.type;
+	_packet[5] = pHeader.packetFlags;
+	_packet[6] = pHeader.PID;
 
+	/* Prepare payload field and calculate checksum */
 	for(int i = 0; i < 24; i++){
 		_packet[i + 7] = (uint8_t)payload[i];
-		checkSum += countSetBits(payload[i]);					// Calculate check sum
+		pHeader.checksum += countSetBits(payload[i]);					// Calculate check sum
 	}
-	_packet[31] = checkSum;
+	_packet[31] = pHeader.checksum;										// Attached checksum byte
 }
 /*
  *
@@ -683,6 +774,17 @@ void displayData(uint8_t *receivedData){
 }
 
 
+uint8_t calculateChecksum(const uint8_t *payload){
+
+	uint8_t checksum = 0;
+
+	for(int i = 0; i < 24; i++){
+			checksum += countSetBits(payload[i]);					// Calculate checksum
+		}
+
+	return checksum;
+}
+
 /*
  *
  */
@@ -696,6 +798,84 @@ uint8_t countSetBits(uint8_t n)
     return count;
 }
 
+
+/*
+ *
+ */
+struct packetHeader setHeaderValues(uint8_t destAddr, uint8_t gateway, uint8_t sourceAddr, uint8_t TTL, uint8_t type, uint8_t packetFlags, uint8_t PID, uint8_t checksum){
+
+	struct packetHeader pHeader = {destAddr, gateway, sourceAddr, TTL, type, packetFlags, PID, checksum};
+
+	return pHeader;
+}
+
+
+/*
+ *
+ */
+void broadcastRoutingTable(const uint8_t* rTable, uint8_t* _packet){
+
+	struct packetHeader pHeader = {0, 0, MYADDRESS, 0, ADVERTISEMENT, 0b0000, 0, 0};
+
+	memset(_packet, 0, sizeof(_packet));						// Clear packet
+
+
+	_packet[0] = pHeader.destAddr;
+	_packet[1] = pHeader.gateway;
+	_packet[2] = pHeader.sourceAddr;
+	_packet[3] = pHeader.TTL;
+	_packet[4] = pHeader.type;
+	_packet[5] = pHeader.packetFlags;
+	_packet[6] = pHeader.PID;
+
+	_packet[31] = calculateChecksum(rTable);
+
+	assemblePacket(rTable, _packet, pHeader);
+}
+
+
+/*
+ *
+ */
+void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
+
+	routingTable[sourceAddr] = sourceAddr;				// Set neighbour as gateway to itself
+
+	for(int i = 1; i < 25; i++){
+		/* Skip entry if it contains MYADDRESS, sourceAddr, common neighbours or empty */
+		if((i == MYADDRESS) || (i == sourceAddr) || (routingTable[i]  == i) || (rTable[i-1] == 0)){
+			continue;
+		}
+		else if(rTable[i-1] != 0){
+			routingTable[i] = sourceAddr;			// Set neighbour as gateway to its non-common neighbours
+		}
+	}
+	advCounter[sourceAddr]++;
+}
+
+
+/*
+ *
+ */
+void PTX_Mode(void){
+
+	hal_nrf_flush_tx();								// Flush TX FIFO
+
+	hal_nrf_set_operation_mode(HAL_NRF_PTX);		// Set module in receiver mode
+
+}
+
+
+/*
+ *
+ */
+void PRX_Mode(void){
+
+	hal_nrf_flush_rx();								// Flush Rx FIFO
+
+	hal_nrf_set_operation_mode(HAL_NRF_PRX);		// Set module in receiver mode
+
+}
 
 /*
  *
@@ -728,7 +908,6 @@ void CE_HIGH(void){
 
 	HAL_GPIO_WritePin(GPIOB, CE, GPIO_PIN_SET);
 }
-
 
 /* USER CODE END 4 */
 
