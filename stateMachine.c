@@ -118,6 +118,7 @@ int main(void)
   uint8_t ackReceived = 0;
   uint8_t broadcasting = 0;
   uint8_t pushButton;
+  uint8_t gateway;
 
   struct packetHeader pHeader;
   struct headerFlags  hFlags;
@@ -158,7 +159,7 @@ int main(void)
 
 	  		/* timer will be used instead of this */
 	  		counter++;
-	  		if(counter == 500000){
+	  		if(counter == 1000000){
 	  			broadcastRoutingTable(routingTable, txPacket);
 	  			broadcasting = 1;
 	  			state = PTX_STATE;								// Switch to PTX state to send advertisement
@@ -182,7 +183,7 @@ int main(void)
 	  		}
 	  		else if(pushButton == 0){
 	  			while(pushButton == 0){
-
+	  				pushButton = HAL_GPIO_ReadPin(GPIOC,PBUTTON);
 	  			}
 
 	  			state = PTX_STATE;
@@ -198,7 +199,9 @@ int main(void)
 	  			printf("Routing Table:\r\n");
 	  			for(int i = 1; i < 25; i++){
 	  				printf("%u\t%u",i, routingTable[i]);
+	  				printf("\r\n");
 	  			}
+	  			printf("\r\n");
 	  			CE_HIGH();
 	  			state = PRX_STATE;										// Switch to PRX state
 	  		}
@@ -270,17 +273,17 @@ int main(void)
 	  		}
 	  		else{
 
-	  			/*
-		  		new_gateway = checkRoutingTable();
+	  			// Check if destination node is available in routing table
+	  			if(routingTable[pHeader.destAddr] == 0){
+	  				printf("Unable to relay packet from node%u to node%u\n", pHeader.sourceAddr, pHeader.destAddr);
+	  			}
+	  			else{
+	  				// Update gateway field in packet header for next hop
+	  				pHeader.gateway = routingTable[pHeader.destAddr];
 
-				// If gateway found, update header fields
+	  			}
 
-	  			// pHeader.TTL--;
-	  			// pHeader.gateway = new_gateway;
 
-	  			// Transmit packet
-
-	  			*/
 	  		}
 
 	  		break;
@@ -297,10 +300,12 @@ int main(void)
 
 	  		if(broadcasting == 0){
 
-	  			pHeader = setHeaderValues(NODE_1, NODE_1, NODE_2, 255, DATA, 0b0010, 0, 0); // Configure header fields
+	  			gateway = routingTable[NODE_2];				// Get gateway from routing table
+	  			pHeader = setHeaderValues(NODE_2, gateway, NODE_1, 255, DATA, 0b0010, 0, 0); // Configure header fields
 	  			assemblePacket(txData, txPacket, pHeader);		// Prepare packet
 	  			ackReceived = 0;								// Reset Ack receive flag
 	  		}
+	  		broadcasting = 0;
 	  		hal_nrf_write_tx_pload(txPacket, 32);			// Load packet
 			CE_HIGH();										// Send packet
 
@@ -464,10 +469,16 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PC13 PC0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_0;
+  /*Configure GPIO pin : PC0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PC1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
@@ -843,7 +854,7 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 
 	for(int i = 1; i < 25; i++){
 		/* Skip entry if it contains MYADDRESS, sourceAddr, common neighbours or empty */
-		if((i == MYADDRESS) || (i == sourceAddr) || (routingTable[i]  == i) || (rTable[i-1] == 0)){
+		if((i == MYADDRESS) || (i == sourceAddr) || (routingTable[i]  == rTable[i]) || (rTable[i-1] == 0)){
 			continue;
 		}
 		else if(rTable[i-1] != 0){
