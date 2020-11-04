@@ -22,7 +22,7 @@
 #define	CE		GPIO_PIN_9
 #define	CSN		GPIO_PIN_8
 #define	IRQ		GPIO_PIN_0
-#define PBUTTON GPIO_PIN_13
+#define PBUTTON 	GPIO_PIN_1
 
 #define	MYADDRESS	1
 #define PACKETLENGTH 32
@@ -36,7 +36,7 @@ struct packetHeader{
 	uint8_t sourceAddr;					// Source address
 	uint8_t TTL;						// Time to live
 	uint8_t type;						// Packet type
-	uint8_t packetFlags;				// Ack, Last packet, ... more to be added
+	uint8_t packetFlags;					// Ack, Last packet, ... more to be added
 	uint8_t PID;						// Packet ID
 	uint8_t checksum;
 };
