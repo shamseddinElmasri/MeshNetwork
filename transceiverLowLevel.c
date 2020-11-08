@@ -12,11 +12,6 @@
 #include "Transceiver.h"
 
 
-
-
-char txData[] = "Capstone mesh network by mohana!";
-SPI_HandleTypeDef hspi2;
-
 /*
  *	Function for SPI and GPIO initialization
  */
@@ -133,6 +128,69 @@ void transceiverInit(void){
 
 	 CE_HIGH();																						// Set chip enable bit high
 }
+
+/*
+ *	Function for initializing timer 1 with 1 microsecond resolution
+ */
+void timer1Init(void){
+  
+  __HAL_RCC_TIM1_CLK_ENABLE();
+  
+  tim1.Instance = TIM1;
+  tim1.Init.Prescaler     = (HAL_RCC_GetPCLK2Freq() / 1000000 - 1);
+  tim1.Init.CounterMode   = TIM_COUNTERMODE_UP;
+  tim1.Init.Period        = 0xffff;
+  tim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  tim1.Init.RepetitionCounter = 0;
+  HAL_TIM_Base_Init(&tim1);
+  
+}
+
+
+//Function name: timer17Init()
+//Description: Initializes timer17 to have a 1 microsecond tick, and enables the overflow interrupt
+//Parameters: void
+//Returns: void
+void timer17Init(void){
+
+  __HAL_RCC_TIM17_CLK_ENABLE();
+  tim17.Instance = TIM17;
+  tim17.Init.Prescaler = HAL_RCC_GetPCLK2Freq()/1000 - 1;
+  tim17.Init.CounterMode = TIM_COUNTERMODE_UP;
+  tim17.Init.Period = 1000;
+  tim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  tim17.Init.RepetitionCounter = 0;
+  TIM17 -> CR1 |= (TIM_CR1_URS); 														// Only counter over/under flow generates interrupt
+  TIM17 -> DIER |= 0b1; 																		// Set Update Interrupt Enable bit
+  TIM17 -> EGR |= 0b1; 																			// Set Update Generation bit
+  HAL_TIM_Base_Init(&tim17);
+   
+  //Enable Interrupts
+  HAL_NVIC_SetPriority(TIM17_IRQn,0,1);			// To be adjusted!!!!
+  NVIC_EnableIRQ(TIM17_IRQn);
+  
+  HAL_TIM_Base_Start(&tim17); 															// Start timer
+}
+
+
+/*
+ * This function generates a delay in microsenconds using timer 1
+ */
+void microDelay(uint32_t delay){
+
+  HAL_TIM_Base_Start(&tim1);				// Start timer
+  if(delay <= 65535)
+    {
+      TIM1->CNT = 0;       					// Reset counter
+      while(TIM1->CNT < delay) {
+	asm volatile ("nop\n");
+      }
+    }
+  else
+    printf("input value for delay should be between 0 and 65536\n");
+  HAL_TIM_Base_Stop(&tim1);					// Stop timer
+}
+
 
 /*************Low Level Functions***************/
 

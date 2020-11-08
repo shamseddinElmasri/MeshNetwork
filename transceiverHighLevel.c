@@ -12,15 +12,20 @@
 #include "Transceiver.h"
 
 
+// Global TypeDefs
+SPI_HandleTypeDef hspi2;
+TIM_HandleTypeDef tim1;
+TIM_HandleTypeDef tim17;
 
 // Global variables
+uint8_t routingTable[24] = {0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,255};
+uint8_t advCounter[12] = {0};
+char txData[25] = "Shamseddin Elmasri 12345";
 
-uint8_t routingTable[255] = {0};
-uint8_t advCounter[255] = {0};
 
 
 //static uint8_t txPacket[32];
-//static char txData[25] = "Shamseddin Elmasri 12345";
+//static 
 
 
 /*************High Level Functions***************/
@@ -253,21 +258,79 @@ void broadcastRoutingTable(const uint8_t* rTable, uint8_t* _packet){
  */
 void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 
-	routingTable[sourceAddr] = sourceAddr;		// Set neighbour as gateway to itself
-
-	for(int i = 1; i < 25; i++){
-		/* Skip entry if it contains MYADDRESS, sourceAddr, common neighbours or empty */
-		if((i == MYADDRESS) || (i == sourceAddr) || (routingTable[i]  == rTable[i]) || (rTable[i-1] == 0)){
-			continue;
+	static uint8_t gateway[12]	= {0};
+	static uint8_t nOfHops[12] = {255,255,255,255,255,255,255,255,255,255,255,255};
+	uint8_t gWay[12]	= {0};
+	uint8_t nHops[12]	= {0};
+	
+	/* Disassembling Incoming Routing Table*/
+	for(int i = 0; i < 24; i++){
+	
+		if(i < 12){
+		
+			gWay[i] = rTable[i];
 		}
-		else if(rTable[i-1] != 0){
-			routingTable[i] = sourceAddr;					// Set neighbour as gateway to its non-common neighbours
+		else{
+		
+			nHops[i - 12] = rTable[i];
 		}
 	}
-	advCounter[sourceAddr]++;
+	
+	gateway[sourceAddr - 1] = sourceAddr;	// Set neighbour as gateway to itself
+	nOfHops[sourceAddr - 1] = 1;
+
+	for(int i = 0; i <= 24; i++){
+		
+		if(i < 12){
+				
+			/* Skip entry if it contains MYADDRESS, sourceAddr, common neighbours or empty */
+			if((i == MYADDRESS - 1) || (i == sourceAddr - 1) || (gateway[i]  == gWay[i])){
+				continue;
+			}
+			else if(gWay[i] != 0){
+				
+				// Update gateway only if it provides less number of hops
+				if(nHops[i] <= nOfHops[i]){
+		
+					gateway[i] = sourceAddr;			// Set neighbour as gateway to the non-common neighbours
+					nOfHops[i] 	= nHops[i] + 1;		// Update number of hops
+				}		
+			}
+		}
+	}
+		
+	/* Assembling Local Routing Table*/
+	for(int i = 0; i < 24; i++){
+	
+		if(i < 12){
+		
+			routingTable[i] = gateway[i];
+		}
+		else{
+		
+			routingTable[i] = nOfHops[i - 12];
+		}
+	}
+	
+	advCounter[sourceAddr - 1]++;						// Increment counter for advertising node
 }
 
 
+/*
+ *
+ */
+ void displayRoutingTable(void){
+
+	printf("Routing Table:\nNode\tGateway\tHops\n");
+	
+  for(uint8_t i = 0; i < 12; i++){
+		
+		printf("%d\t%d\t%d\n", i+1, routingTable[i], routingTable[i+12]);
+  }
+  printf("\n");
+}
+
+ 
 /*
  *	Function for setting transceiver as transmitter
  */
