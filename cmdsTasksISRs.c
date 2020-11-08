@@ -97,7 +97,8 @@ void PRX_Task(void *data){
 	  			if(hFlags.ackFlag == 1){
 						// Prepare Ack packet here !!!!!
 						// Send Ack packet here !!!!!!
-						transmitData();
+						
+						transmitData(ackMessage);
 	  			}
 	  			else{
 	  				CE_HIGH();
@@ -123,9 +124,9 @@ void PRX_Task(void *data){
 	  			}
 	  			else{
 	  				// Update gateway field in packet header for next hop
-	  				pHeader.gateway = routingTable[pHeader.destAddr];
+	  				pHeader.gateway = routingTable[pHeader.destAddr - 1];
 	  				// Transmit packet here!!!!!!!
-	  				transmitData();
+	  				transmitData(txData);
 	  			}
 	  		}
 	  	}
@@ -148,16 +149,28 @@ ADD_TASK (PRX_Task, PRX_Init, NULL, 0, "				PRX Mode Task")
 /*
  *	Command for transmitting data
  */
-ParserReturnVal_t Cmdtransmitfun(int mode){
+ParserReturnVal_t CmdtransmitPacket(int mode){
   
-	if(mode != CMD_INTERACTIVE) return CmdReturnOk;
+  uint32_t rc;
+  char *temp;																					// Used for pointing to data to be transmitted
+  
+  if(mode != CMD_INTERACTIVE) return CmdReturnOk;
 
-	transmitData();
+	memset(txData, 0, sizeof(txData));									// Clear data array
+	temp = txData;
+  rc = fetch_string_arg(&temp);												// Fetch data from user via terminal
+  
+  if(rc) {
+    printf("Please supply data to be transmitted\n");
+    return CmdReturnBadParameter1;
+  }
+	
+	transmitData(temp);																	// Transmit data
 
 	return CmdReturnOk;
 }
 
-ADD_CMD("txdata",Cmdtransmitfun,"         start transmitting")
+ADD_CMD("txPacket",CmdtransmitPacket,"         Transmit Packet")
 
 
 /*
@@ -183,6 +196,15 @@ ADD_CMD("readreg",CmdReadAllReg,"         read all registers")
 //Returns: void
 void TIM17_IRQHandler(void)
 {
+	static uint8_t counter = 0;	// Used for creating a 5-second period to delete inactive nodes from routing table
+	
+	counter++;
+	if(counter == 5){
+	
+		deleteInactiveNodes();
+		counter = 0;
+	}
+	
 	// Prepare advertisement packet
 
   broadcasting = 1;

@@ -18,9 +18,10 @@ TIM_HandleTypeDef tim1;
 TIM_HandleTypeDef tim17;
 
 // Global variables
-uint8_t routingTable[24] = {0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,255};
-uint8_t advCounter[12] = {0};
-char txData[25] = "Shamseddin Elmasri 12345";
+uint8_t routingTable[24]	= {0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,255};
+uint8_t advCounter[12]		= {0};
+char 		ackMessage[25] 			= "Packet Received!";
+char 		txData[25];
 
 
 
@@ -358,8 +359,14 @@ void PRX_Mode(void){
 /*
  *
  */
-void transmitData(void){
+void transmitData(char* txMessage){
 }
 
 
+
+/*
+ *
+ */
+void deleteInactiveNodes(void){
+}
 

@@ -33,10 +33,10 @@ extern TIM_HandleTypeDef tim1;
 extern TIM_HandleTypeDef tim17;
 
 // Global Variables
-extern uint8_t 	routingTable[24];
-extern uint8_t 	advCounter[12];
-extern char 		txData[25];
-
+extern	uint8_t	routingTable[24];
+extern	uint8_t	advCounter[12];
+extern	char		txData[25];
+extern	char		ackMessage[25];
 
 struct packetHeader{
 	uint8_t destAddr;					// Destination address
@@ -140,8 +140,8 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr);
 
 void PRX_Task(void *data);
 void PRX_Init(void* data);
-void transmitData(void);
+void transmitData(char*);
 void displayRoutingTable(void);
-
+void deleteInactiveNodes(void);
 
 #endif /* INC_TRANSCEIVER_H_ */
