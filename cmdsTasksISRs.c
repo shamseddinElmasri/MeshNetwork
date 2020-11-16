@@ -36,47 +36,46 @@ void PRX_Task(void *data){
 
 	struct packetHeader _pHeader;
 	struct packetHeader *pHeader = &_pHeader;		// Pointer to instance
-  struct headerFlags  _hFlags;
-  struct headerFlags  *hFlags = &_hFlags;
+  	struct headerFlags  _hFlags;
+	struct headerFlags  *hFlags = &_hFlags;
 
 	CE_HIGH();
-  /* Broadcast routing table */
+  	/* Broadcast routing table */
 	if(broadcasting == 1){
      
 		/* Check if 5-second period elapsed */
-    if(secondsCounter >= 5){
-	    deleteInactiveNodes();  // Delete inactive nodes from routing table
-      secondsCounter = 0;     // Reset seconds counter
-    }
+		if(secondsCounter >= 5){
+			deleteInactiveNodes();  // Delete inactive nodes from routing table
+			secondsCounter = 0;     // Reset seconds counter
+		}
       
-    /* Prepare advertisement packet */  
-    broadcastRoutingTable(pHeader, routingTable, advPacket); // Prepare advertisement packet
-    transmitData(advPacket);                        // Broadcast packet
-    broadcasting = 0;                               // Reset broadcasting Flag
-    
-		/* Switch back to receiver mode */
-    PRX_Mode();																				
+		/* Prepare advertisement packet */  
+		broadcastRoutingTable(pHeader, routingTable, advPacket); // Prepare advertisement packet
+		transmitData(advPacket);                        // Broadcast packet
+		broadcasting = 0;                               // Reset broadcasting Flag
+
+    		/* Switch back to receiver mode */	
+    		PRX_Mode();					
 		CE_HIGH();
 		microDelay(130);
 	}
 	
 	/* Check if received packet */
 	if(HAL_GPIO_ReadPin(GPIOC,IRQ) == 0){
-//printf("routing table received\n");
-		CE_LOW();																										// Enter standby-I mode, not sure if this is mandatory...
 
-		memset(receivedPacket, 0, PACKETLENGTH);										// Clear packet array
-		memset(receivedData, 0, sizeof(receivedData));							// Clear data array
+		CE_LOW();	// Enter standby-I mode, not sure if this is mandatory...
 
-		hal_nrf_read_rx_pload(receivedPacket);											// Read received packet
-		hal_nrf_get_clear_irq_flags(); 															// Clear data ready flag
+		memset(receivedPacket, 0, PACKETLENGTH);	// Clear packet array
+		memset(receivedData, 0, sizeof(receivedData));	// Clear data array
 
-		/*	Check packet type	*/
-		disassemblePacket(pHeader, receivedData, receivedPacket);	// Disassemble packet
+		hal_nrf_read_rx_pload(receivedPacket);		// Read received packet
+		hal_nrf_get_clear_irq_flags();			// Clear data ready flag
+
+		/* Check packet type */
+		disassemblePacket(pHeader, receivedData, receivedPacket); // Disassemble packet
 
 		if(pHeader->type == ADVERTISEMENT){
-	  		
-			
+	  					
 			updateRoutingTable(receivedData, pHeader->sourceAddr);
 				  			
 			displayRoutingTable();
@@ -88,78 +87,74 @@ void PRX_Task(void *data){
 		}
  		else if(pHeader->type == DATA){
 
-			/*	Check Address	*/
+			/* Check Address */
 			if(pHeader->destAddr == MYADDRESS){
 
-	  		if(pHeader->checksum != calculateChecksum(receivedData)){
+		  		if(pHeader->checksum != calculateChecksum(receivedData)){
 
-	  			// Discard packet
-	  			printf("Checksum error, packet dropped!\n");
-
-	  		}
-	  		else{
-
+	  				// Discard packet
+	  				printf("Checksum error, packet dropped!\n");
+	  			}
+	  			else{
 					displayPacket(receivedData, pHeader);
 
 					/* Update number of hops in routing table */
 					routingTable[pHeader->sourceAddr + 11] = 255 - pHeader->TTL + 1;	
 					
 					/* Check if Ack is required */
-	  			processHeader(hFlags, pHeader);
+	  				processHeader(hFlags, pHeader);
 	  			
-	  			if(hFlags->ackFlag == 1){
+	  				if(hFlags->ackFlag == 1){
 	  			
 						/* Prepare Ack packet */
 						setHeaderValues(pHeader, pHeader->sourceAddr, routingTable[pHeader->sourceAddr], MYADDRESS, 255, ACK, 0b0010, 0);
 						assemblePacket(ackMessage, ackPacket, pHeader);
 						
-						transmitData(ackPacket);				// Transmit Ack packet
+						transmitData(ackPacket); // Transmit Ack packet
 						
 						/* Switch back to receiver mode */
-				    PRX_Mode();																				
+					 	PRX_Mode();							
 						CE_HIGH();
 						microDelay(130);
-	  			}
-	  			else{
-	  				printf("No Ack packet required\n");
+	  				}
+	  				else{
+	  					printf("No Ack packet required\n");
+	  				}
 	  			}
 	  		}
-	  	}
-	  	/*	Relay Packet	*/
-	  	else if(pHeader->gateway == MYADDRESS){
+	  		/* Relay Packet	*/
+	  		else if(pHeader->gateway == MYADDRESS){
 	  		
-	  		if(pHeader->TTL == 0){		  												// Discard packet if TTL reached zero
+	  			if(pHeader->TTL == 0){		  
 
-	  			printf("TTL reached zero, packet dropped!\n");
-	  			CE_HIGH();
-	  			return;
+	  				// Discard packet if TTL reached zero
+	  				printf("TTL reached zero, packet dropped!\n");
+	  			}
+	  			else{
+	  				// Check if destination node is available in routing table
+	  				if(routingTable[pHeader->destAddr] == 0){
+	  					printf("Unable to relay packet from node%u to node%u\n", pHeader->sourceAddr, pHeader->destAddr);
+	  				}
+	  				else{
+	  				
+	  					pHeader->gateway = routingTable[pHeader->destAddr - 1];	// Update gateway
+	  					pHeader->TTL--;						// Decrement TTL
+
+ 						assemblePacket((char*)receivedData, receivedPacket, pHeader); // Reassemble packet
+	  					transmitData(receivedPacket);	// Relay packet
+
+ 						/* Switch back to receiver mode */
+						PRX_Mode();
+						CE_HIGH();
+						microDelay(130);
+	  				}
+	  			}
 	  		}
 	  		else{
 
-	  			// Check if destination node is available in routing table
-	  			if(routingTable[pHeader->destAddr] == 0){
-	  				printf("Unable to relay packet from node%u to node%u\n", pHeader->sourceAddr, pHeader->destAddr);
-	  			}
-	  			else{
-	  				
-	  				pHeader->gateway = routingTable[pHeader->destAddr - 1];					// Update gateway for next hop
-	  				pHeader->TTL--;																								// Decrement TTL
-
- 						assemblePacket((char*)receivedData, receivedPacket, pHeader);	// Reassemble packet										
-	  				transmitData(receivedPacket);																	// Relay packet
-
- 						/* Switch back to receiver mode */
-				    PRX_Mode();																				
-						CE_HIGH();
-						microDelay(130);
-	  			}
+	  			// Discard packet
+	  			printf("Wrong gateway, packet dropped!\n");
 	  		}
-	  	}
-	  	else{
-
-	  		// Discard packet
-	  		printf("Wrong gateway, packet dropped!\n");
-	  	}
  		}
 	}
 }
@@ -174,24 +169,25 @@ ADD_TASK (PRX_Task, PRX_Init, NULL, 0, "				PRX Mode Task")
  */
 ParserReturnVal_t CmdtransmitPacket(int mode){
   
-  uint32_t rc;
-  char *temp;																	// Used for pointing to data to be transmitted
+	uint32_t rc;
+	char *temp;					// Used for pointing to data to be transmitted
+	uint16_t destAddr;
 	struct packetHeader _pHeader;
-	struct packetHeader *pHeader = &_pHeader;		// Pointer to instance
-  uint16_t destAddr;
+	struct packetHeader *pHeader = &_pHeader;	// Pointer to instance
 
-  if(mode != CMD_INTERACTIVE) return CmdReturnOk;
 
-	memset(txData, 0, sizeof(txData));									// Clear data array
+	if(mode != CMD_INTERACTIVE) return CmdReturnOk;
+
+	memset(txData, 0, sizeof(txData));		// Clear data array
 	temp = txData;
 
-	rc = fetch_uint16_arg(&destAddr);												// Fetch data from user via terminal
+	rc = fetch_uint16_arg(&destAddr);		// Fetch data from user via terminal
   
   	if(rc) {
     		printf("Please specify destination node\n");
     		return CmdReturnBadParameter1;
   	}
-	rc = fetch_string_arg(&temp);												// Fetch data from user via terminal
+	rc = fetch_string_arg(&temp);			// Fetch data from user via terminal
   
 	if(rc) {
     		printf("Please supply data to be transmitted\n");
@@ -200,7 +196,7 @@ ParserReturnVal_t CmdtransmitPacket(int mode){
  
 	setHeaderValues(pHeader, (uint8_t)destAddr, routingTable[destAddr], MYADDRESS, 255, DATA, 0b0010, 0);
 	assemblePacket(temp, txPacket, pHeader);
-	transmitData(txPacket);																	// Transmit data
+	transmitData(txPacket);				// Transmit data
 
 	return CmdReturnOk;
 }
@@ -227,14 +223,14 @@ ADD_CMD("readreg",CmdReadAllReg,"         read all registers")
 /*************************************Interrupts***************************************************/
 //Function name: TIM17_IRQHandler
 //Description: Interrupt for sending an advertisement packet every 1 second and deleting inactive
-//						 nodes from routing table every 5 seconds
+//		nodes from routing table every 5 seconds
 //Parameters: void
 //Returns: void
 void TIM17_IRQHandler(void)
 {	
-	secondsCounter++;				// Increment seconds counter 
+	secondsCounter++;	// Increment seconds counter 
 
-  broadcasting = 1;
+	broadcasting = 1;
 	 
-  TIM17 -> SR &= 0xfffe;	// Reset the Update Interrupt Flag (UIF)                    
+	TIM17 -> SR &= 0xfffe;	// Reset the Update Interrupt Flag (UIF)                    
 }
