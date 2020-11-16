@@ -37,6 +37,11 @@ extern	uint8_t	routingTable[24];
 extern	uint8_t	advCounter[12];
 extern	char		txData[25];
 extern	char		ackMessage[25];
+extern 	uint8_t	txPacket[32];
+extern	uint8_t	ackPacket[32];
+extern 	uint8_t advPacket[32];
+extern	volatile uint8_t broadcasting;
+extern	volatile uint8_t secondsCounter;
 
 struct packetHeader{
 	uint8_t destAddr;					// Destination address
@@ -119,6 +124,7 @@ void CE_HIGH(void);
 void spi_init(void);
 void timer1Init(void);
 void timer17Init(void);
+void microDelay(uint32_t delay);
 void transceiverInit(void);
 uint8_t spiTransaction(uint8_t *tx, uint8_t *rx, uint8_t nOfBytes);
 void readAllRegisters(void);
@@ -128,19 +134,19 @@ void setDataRate(dataRate dRate);
 uint8_t hal_nrf_rw(uint8_t value);
 
 // High Level Functions
-struct packetHeader disassemblePacket(uint8_t *receivedData, uint8_t *receivedPacket);
-void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader);
+void disassemblePacket(struct packetHeader *_packetHeader, uint8_t *receivedData, uint8_t *receivedPacket);
+void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader *pHeader);
 uint8_t countSetBits(uint8_t n);
-struct headerFlags processHeader(const struct packetHeader *_packetHeader);
-void displayData(uint8_t *receivedData);
+void processHeader(struct headerFlags *_headerFlags, const struct packetHeader *_packetHeader);
+void displayPacket(uint8_t *receivedData, const struct packetHeader *_pHeader);
 uint8_t calculateChecksum(const uint8_t *receivedData);
-struct packetHeader setHeaderValues(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-void broadcastRoutingTable(const uint8_t* rTable, uint8_t* _packet);
+void setHeaderValues(struct packetHeader *pHeader, uint8_t destAddr, uint8_t gateway, uint8_t sourceAddr, uint8_t TTL, uint8_t type, uint8_t packetFlags, uint8_t PID);
+void broadcastRoutingTable(struct packetHeader *pHeader, const uint8_t* rTable, uint8_t* _packet);
 void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr);
 
 void PRX_Task(void *data);
 void PRX_Init(void* data);
-void transmitData(char*);
+void transmitData(uint8_t*);
 void displayRoutingTable(void);
 void deleteInactiveNodes(void);
 

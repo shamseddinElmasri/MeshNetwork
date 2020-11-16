@@ -20,14 +20,13 @@ TIM_HandleTypeDef tim17;
 // Global variables
 uint8_t routingTable[24]	= {0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,255};
 uint8_t advCounter[12]		= {0};
-char 		ackMessage[25] 			= "Packet Received!";
+char 		ackMessage[25] 		= "Packet Received!";
 char 		txData[25];
-
-
-
-//static uint8_t txPacket[32];
-//static 
-
+uint8_t	txPacket[32];
+uint8_t	ackPacket[32];
+uint8_t advPacket[32];
+volatile uint8_t broadcasting = 0;
+volatile uint8_t secondsCounter = 0;			// Used for creating a 5-second period to delete inactive nodes from routing table
 
 /*************High Level Functions***************/
 /*
@@ -52,63 +51,59 @@ void setDataRate(dataRate dRate){
 /*
  *	Function for disassembling a received packet
  */
-struct packetHeader disassemblePacket(uint8_t *receivedData, uint8_t *receivedPacket){
+void disassemblePacket(struct packetHeader *_packetHeader, uint8_t *receivedData, uint8_t *receivedPacket){
 
-	struct packetHeader _packetHeader;
-
+	
 	/* Extract header fields */
-	_packetHeader.destAddr		= receivedPacket[0];
-	_packetHeader.gateway		= receivedPacket[1];
-	_packetHeader.sourceAddr	= receivedPacket[2];
-	_packetHeader.TTL 			= receivedPacket[3];
-	_packetHeader.type 			= receivedPacket[4];
-	_packetHeader.packetFlags 	= receivedPacket[5];
-	_packetHeader.PID 			= receivedPacket[6];
+	_packetHeader->destAddr			= receivedPacket[0];
+	_packetHeader->gateway			= receivedPacket[1];
+	_packetHeader->sourceAddr		= receivedPacket[2];
+	_packetHeader->TTL 					= receivedPacket[3];
+	_packetHeader->type 				= receivedPacket[4];
+	_packetHeader->packetFlags 	= receivedPacket[5];
+	_packetHeader->PID 					= receivedPacket[6];
 
 	/* Extract data */
 	for(int i = 0; i < 24; i++){
 		receivedData[i] = receivedPacket[7 + i];
 	}
 
-	_packetHeader.checksum = receivedPacket[31];
+	_packetHeader->checksum = receivedPacket[31];
 
-	return _packetHeader;
 }
 
 
 /*
  *	Function for packet assembly
  */
-void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader pHeader){
-
-	uint8_t packetSize = sizeof(_packet);
+void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader *pHeader){
 	
-	memset(_packet, 0, packetSize);								// Clear packet
+	memset(_packet, 0, PACKETLENGTH);								// Clear packet
 
 	/* Assemble packet header fields */
-	_packet[0] = pHeader.destAddr;
-	_packet[1] = pHeader.gateway;
-	_packet[2] = pHeader.sourceAddr;
-	_packet[3] = pHeader.TTL;
-	_packet[4] = pHeader.type;
-	_packet[5] = pHeader.packetFlags;
-	_packet[6] = pHeader.PID;
+	_packet[0] = pHeader->destAddr;
+	_packet[1] = pHeader->gateway;
+	_packet[2] = pHeader->sourceAddr;
+	_packet[3] = pHeader->TTL;
+	_packet[4] = pHeader->type;
+	_packet[5] = pHeader->packetFlags;
+	_packet[6] = pHeader->PID;
 
 	/* Prepare payload field and calculate checksum */
 	for(int i = 0; i < 24; i++){
 		_packet[i + 7] = (uint8_t)payload[i];
-		pHeader.checksum += countSetBits(payload[i]);			// Calculate check sum
+		pHeader->checksum += countSetBits(payload[i]);			// Calculate check sum
+ 	
 	}
-	_packet[31] = pHeader.checksum;											// Attached checksum byte
+	_packet[31] = pHeader->checksum;											// Attached checksum byte
 }
 
 
 /*
  *	Function for abstracting received packet header fields
  */
-struct headerFlags processHeader(const struct packetHeader *_packetHeader){
+void processHeader(struct headerFlags *_headerFlags, const struct packetHeader *_packetHeader){
 
-	struct headerFlags _headerFlags;
 
 	/* Check destination address */
 	if(_packetHeader->destAddr != MYADDRESS){
@@ -140,20 +135,20 @@ struct headerFlags processHeader(const struct packetHeader *_packetHeader){
 	/* Check packet flags */
 
 	if((_packetHeader->packetFlags & 0x01) != 0){
-		_headerFlags.ackFlag = 1;
+		_headerFlags->ackFlag = 1;
 		printf("Ack is required\n");
 	}
 	else{
-		_headerFlags.ackFlag = 0;
+		_headerFlags->ackFlag = 0;
 		printf("No Ack is required\n");
 	}
 
 	if((_packetHeader->packetFlags & 0x02) != 0){
-		_headerFlags.lastPacket = 1;
+		_headerFlags->lastPacket = 1;
 		printf("Last packet in data stream\n");
 	}
 	else{
-		_headerFlags.lastPacket = 0;
+		_headerFlags->lastPacket = 0;
 		printf("More packets in data stream \n");
 	}
 
@@ -166,21 +161,22 @@ struct headerFlags processHeader(const struct packetHeader *_packetHeader){
 	printf("Checksum: %d\n", _packetHeader->checksum);
 
 	printf("\n");
-
-	return _headerFlags;
 }
 
 
 /*
  *	Function for displaying recieved data
  */
-void displayData(uint8_t *receivedData){
+void displayPacket(uint8_t *receivedData, const struct packetHeader *pHeader){
 
+	
 	/* Display data */
-	printf("Packet received:\t");
+	printf("Packet received:\n Source: %u\tPacket type: %u\t"
+				 "Number of hops: %u\t", pHeader->sourceAddr, pHeader->type, 255 -  pHeader->TTL + 1);
+	printf("Data received:\t");
 
 	for(int i = 0; i < 25; i++){
-		printf("%c", (char)receivedData[i]);
+		printf("%u", receivedData[i]);
 	}
 	printf("\n\n\n");
 }
@@ -220,35 +216,32 @@ uint8_t countSetBits(uint8_t n)
 /*
  *	Function for setting packet header fields
  */
-struct packetHeader setHeaderValues(uint8_t destAddr, uint8_t gateway, uint8_t sourceAddr, uint8_t TTL, uint8_t type, uint8_t packetFlags, uint8_t PID, uint8_t checksum){
+void setHeaderValues(struct packetHeader *pHeader, uint8_t destAddr, uint8_t gateway, uint8_t sourceAddr, uint8_t TTL, uint8_t type, uint8_t packetFlags, uint8_t PID){
 
-	struct packetHeader pHeader = {destAddr, gateway, sourceAddr, TTL, type, packetFlags, PID, checksum};
-
-	return pHeader;
+	pHeader->destAddr = destAddr;
+	pHeader->gateway = gateway;
+	pHeader->sourceAddr = sourceAddr;
+	pHeader->TTL = TTL;
+	pHeader->type = type;
+	pHeader->packetFlags = packetFlags;
+	pHeader->PID = PID;
+	pHeader->checksum = 0;
 }
 
 
 /*
  * Function for preparing packet for advertisement
  */
-void broadcastRoutingTable(const uint8_t* rTable, uint8_t* _packet){
+void broadcastRoutingTable(struct packetHeader *pHeader, const uint8_t* rTable, uint8_t* _packet){
 
-	struct packetHeader pHeader = {0, 0, MYADDRESS, 0, ADVERTISEMENT, 0b0000, 0, 0};
-
-	uint8_t packetSize = sizeof(_packet);
-
-	memset(_packet, 0, packetSize);						// Clear packet
-
-
-	_packet[0] = pHeader.destAddr;
-	_packet[1] = pHeader.gateway;
-	_packet[2] = pHeader.sourceAddr;
-	_packet[3] = pHeader.TTL;
-	_packet[4] = pHeader.type;
-	_packet[5] = pHeader.packetFlags;
-	_packet[6] = pHeader.PID;
-
-	_packet[31] = calculateChecksum(rTable);
+	pHeader->destAddr = 0;
+	pHeader->gateway = 0;
+	pHeader->sourceAddr = MYADDRESS;
+	pHeader->TTL = 255;
+	pHeader->type = ADVERTISEMENT;
+	pHeader->packetFlags = 0b0000;
+	pHeader->PID = 0;
+	pHeader->checksum = 0;
 
 	assemblePacket((char*)rTable, _packet, pHeader);
 }
@@ -333,23 +326,23 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 
  
 /*
- *	Function for setting transceiver as transmitter
+ *	This function flushes TX FIFO and sets transceiver as transmitter
  */
 void PTX_Mode(void){
 
 	hal_nrf_flush_tx();												// Flush TX FIFO
 
-	hal_nrf_set_operation_mode(HAL_NRF_PTX);	// Set module in receiver mode
+	hal_nrf_set_operation_mode(HAL_NRF_PTX);	// Set module in transmitter mode
 
 }
 
 
 /*
- *	Function for setting transceiver as receiver
+ *	This function flushes RX FIFO and sets transceiver as receiver
  */
 void PRX_Mode(void){
 
-	hal_nrf_flush_rx();												// Flush Rx FIFO
+	//hal_nrf_flush_rx();												// Flush Rx FIFO
 
 	hal_nrf_set_operation_mode(HAL_NRF_PRX);	// Set module in receiver mode
 
@@ -359,7 +352,15 @@ void PRX_Mode(void){
 /*
  *
  */
-void transmitData(char* txMessage){
+void transmitData(uint8_t* _packet){
+
+	CE_LOW();
+	PTX_Mode();	
+	microDelay(130);
+	hal_nrf_write_tx_pload(_packet , PACKETLENGTH);		// Load packet
+	CE_HIGH();																				// Transmit packet
+	microDelay(10);																		// Minmum 10 microseconds delay required
+	CE_LOW();																					// Switch to standby-I mode
 }
 
 
@@ -368,5 +369,22 @@ void transmitData(char* txMessage){
  *
  */
 void deleteInactiveNodes(void){
+
+	for (uint8_t i = 0; i < 12; i++){
+	
+    /* Check for zero counts */	
+		if (advCounter[i] == 0){
+		
+			/* Delete all nodes associated with inactive node */
+			for(uint8_t j = 0; j < 12; j++){
+
+				if(routingTable[j] == i+1){
+                   
+					routingTable[j] = 0;			 // Set gateway to zero
+					routingTable[j+12] = 255;	 // Set number of hops to 255				
+				}
+			}
+		}
+  }          
 }
 

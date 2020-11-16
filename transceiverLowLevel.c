@@ -81,7 +81,7 @@ void spi_init(void){
  */
 void transceiverInit(void){
 
-	 CE_LOW();																						// Set chip enable bit low
+  CE_LOW();																						// Set chip enable bit low
 
 	HAL_Delay(100);																				// Power on reset transition state
 	
@@ -92,7 +92,7 @@ void transceiverInit(void){
 	hal_nrf_set_irq_mode(HAL_NRF_RX_DR, true);						// Enable "Data Ready" interrupt
 	hal_nrf_set_irq_mode(HAL_NRF_TX_DS, false);						// Disable "Data Sent" interrupt
 	hal_nrf_set_irq_mode(HAL_NRF_MAX_RT, false);					// Disable "Max Number of Retransmits" interrupt
-
+	
 	hal_nrf_set_crc_mode(HAL_NRF_CRC_8BIT);								// Enable CRC mode
 
 	hal_nrf_set_operation_mode(HAL_NRF_PRX);							// Set module in receiver mode
@@ -108,7 +108,9 @@ void transceiverInit(void){
 	hal_nrf_set_rx_pload_width(0, 32);										// Set payload width
 
 	setDataRate(DATA_RATE_250KBPS);												// Set RF data rate
-
+	
+ 	hal_nrf_set_output_power(HAL_NRF_18DBM);							// Set RF power
+	
 	hal_nrf_set_address_width(HAL_NRF_AW_5BYTES);					// Set address width
 
 	hal_nrf_set_rf_channel(16);														// Set RF channel
@@ -126,7 +128,7 @@ void transceiverInit(void){
 
 	hal_nrf_get_clear_irq_flags(); 												// Clear all interrupt flags
 
-	 CE_HIGH();																						// Set chip enable bit high
+	CE_HIGH();																						// Set chip enable bit high
 }
 
 /*
@@ -148,16 +150,16 @@ void timer1Init(void){
 
 
 //Function name: timer17Init()
-//Description: Initializes timer17 to have a 1 microsecond tick, and enables the overflow interrupt
+//Description: Initializes timer17 to have a 1 millisecond tick, and enables the overflow interrupt
 //Parameters: void
 //Returns: void
 void timer17Init(void){
 
   __HAL_RCC_TIM17_CLK_ENABLE();
   tim17.Instance = TIM17;
-  tim17.Init.Prescaler = HAL_RCC_GetPCLK2Freq()/1000 - 1;
+  tim17.Init.Prescaler = HAL_RCC_GetPCLK2Freq()/10000 - 1;
   tim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-  tim17.Init.Period = 1000;
+  tim17.Init.Period = 10000;
   tim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   tim17.Init.RepetitionCounter = 0;
   TIM17 -> CR1 |= (TIM_CR1_URS); 														// Only counter over/under flow generates interrupt
