@@ -230,13 +230,13 @@ void PRX_Task(void *data){
 				printf("Error\n");
 			}
 			
-			PRX_Mode;
+			PRX_Mode();
 			CE_HIGH();
 			state = PRX_STATE;			// Switch to PRX state
 			break;
 			
 		default:
-			PRX_Mode;
+			PRX_Mode();
 			CE_HIGH();
 			state = PRX_STATE;			// Switch to PRX state
 			break;
