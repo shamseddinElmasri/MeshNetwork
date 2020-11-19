@@ -107,7 +107,7 @@ void transceiverInit(void){
 
 	hal_nrf_set_rx_pload_width(0, 32);		// Set payload width
 
-	setDataRate(DATA_RATE_250KBPS);			// Set RF data rate
+	setDataRate(DATA_RATE_2MBPS);			// Set RF data rate
 	
  	hal_nrf_set_output_power(HAL_NRF_18DBM);	// Set RF power
 	

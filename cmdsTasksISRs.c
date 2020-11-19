@@ -132,11 +132,11 @@ void PRX_Task(void *data){
 	  			}
 	  			else{
 	  				// Check if destination node is available in routing table
-	  				if(routingTable[pHeader->destAddr] == 0){
+	  				if(routingTable[pHeader->destAddr - 1] == 0){
 	  					printf("Unable to relay packet from node%u to node%u\n", pHeader->sourceAddr, pHeader->destAddr);
 	  				}
 	  				else{
-	  				
+	  					printf("packet relayed from node%u to node%u\n", pHeader->sourceAddr, pHeader->destAddr);
 	  					pHeader->gateway = routingTable[pHeader->destAddr - 1];	// Update gateway
 	  					pHeader->TTL--;						// Decrement TTL
 
@@ -194,7 +194,7 @@ ParserReturnVal_t CmdtransmitPacket(int mode){
     		return CmdReturnBadParameter1;
 	}
  
-	setHeaderValues(pHeader, (uint8_t)destAddr, routingTable[destAddr], MYADDRESS, 255, DATA, 0b0010, 0);
+	setHeaderValues(pHeader, (uint8_t)destAddr, 3, MYADDRESS, 255, DATA, 0b0010, 0);
 	assemblePacket(temp, txPacket, pHeader);
 	transmitData(txPacket);				// Transmit data
 
@@ -202,6 +202,27 @@ ParserReturnVal_t CmdtransmitPacket(int mode){
 }
 
 ADD_CMD("txPacket",CmdtransmitPacket,"         Transmit Packet")
+
+
+
+/*
+ *	Command for transmitting advertisement packet
+ */
+ParserReturnVal_t CmdtransmitAdvPacket(int mode){
+  
+	struct packetHeader _pHeader;
+	struct packetHeader *pHeader = &_pHeader;	// Pointer to instance
+
+	if(mode != CMD_INTERACTIVE) return CmdReturnOk;
+ 
+	setHeaderValues(pHeader, 0, 3, MYADDRESS, 255, ADVERTISEMENT, 0b0010, 0);
+	assemblePacket((char*)routingTable, txPacket, pHeader);
+	transmitData(txPacket);				// Transmit data
+
+	return CmdReturnOk;
+}
+
+ADD_CMD("txAdv",CmdtransmitAdvPacket,"         Transmit advertisement packet")
 
 
 /*
@@ -219,6 +240,21 @@ ParserReturnVal_t CmdReadAllReg(int mode){
 
 ADD_CMD("readreg",CmdReadAllReg,"         read all registers")
 
+
+
+/*
+ *	Command for reading all registers
+ */
+ParserReturnVal_t CmddisplayRoutingTable(int mode){
+  
+	if(mode != CMD_INTERACTIVE) return CmdReturnOk;
+
+	displayRoutingTable();
+
+	return CmdReturnOk;
+}
+
+ADD_CMD("rt",CmddisplayRoutingTable,"         display Routing Table")
 
 /*************************************Interrupts***************************************************/
 //Function name: TIM17_IRQHandler
