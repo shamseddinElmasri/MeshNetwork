@@ -194,7 +194,7 @@ ParserReturnVal_t CmdtransmitPacket(int mode){
     		return CmdReturnBadParameter1;
 	}
  
-	setHeaderValues(pHeader, (uint8_t)destAddr, 3, MYADDRESS, 255, DATA, 0b0010, 0);
+	setHeaderValues(pHeader, (uint8_t)destAddr, routingTable[destAddr - 1], MYADDRESS, 255, DATA, 0b0010, 0);
 	assemblePacket(temp, txPacket, pHeader);
 	transmitData(txPacket);				// Transmit data
 
@@ -215,7 +215,7 @@ ParserReturnVal_t CmdtransmitAdvPacket(int mode){
 
 	if(mode != CMD_INTERACTIVE) return CmdReturnOk;
  
-	setHeaderValues(pHeader, 0, 3, MYADDRESS, 255, ADVERTISEMENT, 0b0010, 0);
+	setHeaderValues(pHeader, 0, 0, MYADDRESS, 255, ADVERTISEMENT, 0b0010, 0);
 	assemblePacket((char*)routingTable, txPacket, pHeader);
 	transmitData(txPacket);				// Transmit data
 
