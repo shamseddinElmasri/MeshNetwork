@@ -62,7 +62,7 @@ void PRX_Task(void *data){
 		
 			/* Broadcast routing table */
 			if(broadcasting == 1){
-     	
+     				
 				/* Check if 5-second period elapsed */
 				if(secondsCounter >= 5){
 					deleteInactiveNodes();  // Delete inactive nodes from routing table
@@ -160,6 +160,7 @@ void PRX_Task(void *data){
 	  				CE_HIGH();
 					state = PRX_STATE;			// Switch to PRX state	
 	  			}
+	  		}
 	  			
 		case RELAY_PACKET_STATE:
 		
@@ -229,11 +230,13 @@ void PRX_Task(void *data){
 				printf("Error\n");
 			}
 			
+			PRX_Mode;
 			CE_HIGH();
 			state = PRX_STATE;			// Switch to PRX state
 			break;
 			
 		default:
+			PRX_Mode;
 			CE_HIGH();
 			state = PRX_STATE;			// Switch to PRX state
 			break;
