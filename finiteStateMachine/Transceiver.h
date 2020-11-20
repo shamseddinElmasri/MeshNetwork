@@ -23,7 +23,7 @@
 #define	IRQ	GPIO_PIN_0
 #define PBUTTON	GPIO_PIN_1
 
-#define	MYADDRESS	2
+#define	MYADDRESS	1
 #define PACKETLENGTH	32
 
 

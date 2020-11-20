@@ -63,7 +63,7 @@ void PRX_Task(void *data){
 		
 			/* Broadcast routing table */
 			if(broadcasting == 1){
-     				
+     				printf("entered broadcasting branch in PRX mode\n");
 				/* Check if 5-second period elapsed */
 				if(secondsCounter >= 5){
 					deleteInactiveNodes();  // Delete inactive nodes from routing table
@@ -86,7 +86,7 @@ void PRX_Task(void *data){
 			break;
 		
 		case CHECK_TYPE_STATE:
-		
+			printf("Entered Check Type State\n");
 			/* Check packet type */
 			disassemblePacket(pHeader, receivedData, receivedPacket); // Disassemble packet
 
@@ -111,11 +111,14 @@ void PRX_Task(void *data){
 				CE_HIGH();
 				state = PRX_STATE;			// Switch to PRX state
  			}
-			
+			else{
+				CE_HIGH();
+				state = PRX_STATE;			// Switch to PRX state
+			}
 			break;
 		
 		case CHECK_ADDRESS_STATE:
-		
+			printf("Entered Check Address State\n");
 			/* Check Address */
 			if(pHeader->destAddr == MYADDRESS){
 
@@ -135,7 +138,7 @@ void PRX_Task(void *data){
 	  		break;
 	  		
 	  	case PROCESS_PACKET_STATE:	
-	  		
+			printf("Entered Process Packet State\n");
 		  	if(pHeader->checksum != calculateChecksum(receivedData)){
 
 				// Discard packet
@@ -194,7 +197,7 @@ void PRX_Task(void *data){
 			break;
 			
 		case ACK_STATE:
-		
+			printf("Entered ACK State\n");
 			/* Prepare Ack packet */
 			setHeaderValues(pHeader, pHeader->sourceAddr, routingTable[pHeader->sourceAddr - 1], MYADDRESS, 255, ACK, 0b0010, 0);
 			assemblePacket(ackMessage, ackPacket, pHeader);
@@ -206,7 +209,7 @@ void PRX_Task(void *data){
 			
 
 		case PTX_STATE:
-		
+			printf("Entered PTX State\n");
 			if(broadcasting){
 			
 				transmitData(advPacket);        // Broadcast packet
