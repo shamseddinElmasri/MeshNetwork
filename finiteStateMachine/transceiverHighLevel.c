@@ -355,8 +355,7 @@ void PRX_Mode(void){
 void transmitData(uint8_t* _packet){
 
 	CE_LOW();
-	PTX_Mode();	
-	microDelay(130);
+	PTX_Mode();
 	hal_nrf_write_tx_pload(_packet , PACKETLENGTH);		// Load packet
 	CE_HIGH();						// Transmit packet
 	microDelay(10);						// Minmum 10 microseconds delay required

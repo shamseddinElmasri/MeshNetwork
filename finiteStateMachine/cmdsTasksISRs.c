@@ -47,6 +47,7 @@ void PRX_Task(void *data){
 		
 			//* Check if received packet */
 			if(HAL_GPIO_ReadPin(GPIOC,IRQ) == 0){
+				printf("Packet received\n");
 	
 				CE_LOW();	// Enter standby-I mode, not sure if this is mandatory...
 
@@ -167,7 +168,7 @@ void PRX_Task(void *data){
 	  		}
 	  			
 		case RELAY_PACKET_STATE:
-		
+			printf("Entered Relay Packet State\n");
 			if(pHeader->TTL == 0){		  
 
 				// Discard packet if TTL reached zero
@@ -209,24 +210,24 @@ void PRX_Task(void *data){
 			
 
 		case PTX_STATE:
-			printf("Entered PTX State\n");
-			if(broadcasting){
 			
+			if(broadcasting){
+				printf("Entered PTX State, broadcasting branch\n");
 				transmitData(advPacket);        // Broadcast packet
 				broadcasting = 0;               // Reset broadcasting Flag
 			}
 			else if(ackTransmitFlag){
-				
+				printf("Entered PTX State, ack branch\n");
 				transmitData(ackPacket); 	// Transmit Ack packet	
 				ackTransmitFlag = 0;
 			}
 			else if(relayFlag){
-			
+				printf("Entered PTX State, relay branch\n");			
 				transmitData(receivedPacket);	// Relay packet
 				relayFlag = 0;
 			}
 			else if(dataTransmitFlag){
-			
+				printf("Entered PTX State, data transmit branch\n");
 				transmitData(txPacket);		// Transmit data
 				dataTransmitFlag = 0;
 			}
