@@ -76,7 +76,7 @@ enum nodeState{
 	PROCESS_PACKET_STATE,
 	ACK_STATE,
 	PTX_STATE
-}state;
+};
 
 /*
  * enum for node address

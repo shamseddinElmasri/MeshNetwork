@@ -31,14 +31,15 @@ void PRX_Init(void* data){
  */
 void PRX_Task(void *data){
 	
-	uint8_t receivedPacket[32];
-	uint8_t receivedData[25];
+	static uint8_t receivedPacket[32];
+	static uint8_t receivedData[25];
 
-	struct packetHeader _pHeader;
-	struct packetHeader *pHeader = &_pHeader;		// Pointer to instance
-  	struct headerFlags  _hFlags;
-	struct headerFlags  *hFlags = &_hFlags;
+	static struct packetHeader _pHeader;
+	static struct packetHeader *pHeader = &_pHeader;		// Pointer to instance
+  	static struct headerFlags  _hFlags;
+	static struct headerFlags  *hFlags = &_hFlags;
 	
+	static enum nodeState state = PRX_STATE;
 	
 	switch(state){
 	
@@ -223,7 +224,7 @@ void PRX_Task(void *data){
 			}
 			else if(dataTransmitFlag){
 			
-				transmitData(txPacket);				// Transmit data
+				transmitData(txPacket);		// Transmit data
 				dataTransmitFlag = 0;
 			}
 			else{
@@ -256,6 +257,7 @@ ParserReturnVal_t CmdtransmitPacket(int mode){
 	uint32_t rc;
 	char *temp;					// Used for pointing to data to be transmitted
 	uint16_t destAddr;
+	uint16_t ack;					// Used to set Ack bit in packet header field
 	struct packetHeader _pHeader;
 	struct packetHeader *pHeader = &_pHeader;	// Pointer to instance
 
@@ -265,12 +267,20 @@ ParserReturnVal_t CmdtransmitPacket(int mode){
 	memset(txData, 0, sizeof(txData));		// Clear data array
 	temp = txData;
 
-	rc = fetch_uint16_arg(&destAddr);		// Fetch data from user via terminal
+	rc = fetch_uint16_arg(&destAddr);		// Fetch destination node from user via terminal
   
   	if(rc) {
     		printf("Please specify destination node\n");
     		return CmdReturnBadParameter1;
   	}
+  	
+  	rc = fetch_uint16_arg(&ack);			// Fetch ack bit from user via terminal
+  
+  	if(rc) {
+    		printf("Please set Ack bit\n");
+    		return CmdReturnBadParameter1;
+  	}
+  	
 	rc = fetch_string_arg(&temp);			// Fetch data from user via terminal
   
 	if(rc) {
@@ -278,7 +288,7 @@ ParserReturnVal_t CmdtransmitPacket(int mode){
     		return CmdReturnBadParameter1;
 	}
  
-	setHeaderValues(pHeader, (uint8_t)destAddr, routingTable[destAddr - 1], MYADDRESS, 255, DATA, 0b0010, 0);
+	setHeaderValues(pHeader, (uint8_t)destAddr, routingTable[destAddr - 1], MYADDRESS, 255, DATA, 0b0010 | ack, 0);
 	assemblePacket(temp, txPacket, pHeader);
 	
 	dataTransmitFlag = 1;
@@ -291,7 +301,7 @@ ADD_CMD("txPacket",CmdtransmitPacket,"         Transmit Packet")
 
 
 /*
- *	Command for transmitting advertisement packet
+ *	Command for transmitting advertisement packet (used for testing and troubleshooting purposes only)
  */
 ParserReturnVal_t CmdtransmitAdvPacket(int mode){
   
@@ -328,7 +338,7 @@ ADD_CMD("readreg",CmdReadAllReg,"         read all registers")
 
 
 /*
- *	Command for reading all registers
+ *	Command for displaying the routing table
  */
 ParserReturnVal_t CmddisplayRoutingTable(int mode){
   
