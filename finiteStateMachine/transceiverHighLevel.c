@@ -14,13 +14,13 @@
 
 // Global TypeDefs
 SPI_HandleTypeDef hspi2;
-TIM_HandleTypeDef tim1;
+TIM_HandleTypeDef tim2;
 TIM_HandleTypeDef tim17;
 
 // Global variables
 uint8_t routingTable[24] = {0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,255};
 uint8_t advCounter[12]   = {0};
-char 	ackMessage[25]   = "Packet Received!";
+char 	ackMessage[25]   = "Ack: Packet Received!";
 char 	txData[25];
 uint8_t	txPacket[32];
 uint8_t	ackPacket[32];
@@ -170,16 +170,15 @@ void processHeader(struct headerFlags *_headerFlags, const struct packetHeader *
 /*
  *	Function for displaying recieved data
  */
-void displayPacket(uint8_t *receivedData, const struct packetHeader *pHeader){
+void displayPacket(char *receivedData, const struct packetHeader *pHeader){
 
 	/* Display data */
 	printf("Packet received:\n Source: %u\tPacket type: %u\t"
 				 "Number of hops: %u\t", pHeader->sourceAddr, pHeader->type, 255 -  pHeader->TTL + 1);
 	printf("Data received:\t");
 
-	for(int i = 0; i < 25; i++){
-		printf("%u", receivedData[i]);
-	}
+	printf("%s", receivedData);
+	
 	printf("\n\n\n");
 }
 
@@ -355,11 +354,14 @@ void PRX_Mode(void){
 void transmitData(uint8_t* _packet){
 
 	CE_LOW();
+	microDelay(200);
 	PTX_Mode();
+	microDelay(200);
 	hal_nrf_write_tx_pload(_packet , PACKETLENGTH);		// Load packet
 	CE_HIGH();						// Transmit packet
-	microDelay(10);						// Minmum 10 microseconds delay required
+	microDelay(50);						// Minmum 10 microseconds delay required
 	CE_LOW();						// Switch to standby-I mode
+	microDelay(200);
 }
 
 

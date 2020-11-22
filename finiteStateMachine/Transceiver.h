@@ -23,13 +23,13 @@
 #define	IRQ	GPIO_PIN_0
 #define PBUTTON	GPIO_PIN_1
 
-#define	MYADDRESS	1
+#define	MYADDRESS	2
 #define PACKETLENGTH	32
 
 
 // Global TypeDefs
 extern SPI_HandleTypeDef hspi2;
-extern TIM_HandleTypeDef tim1;
+extern TIM_HandleTypeDef tim2;
 extern TIM_HandleTypeDef tim17;
 
 // Global Variables
@@ -125,7 +125,7 @@ void CSN_HIGH(void);
 void CE_LOW(void);
 void CE_HIGH(void);
 void spi_init(void);
-void timer1Init(void);
+void timer2Init(void);
 void timer17Init(void);
 void microDelay(uint32_t delay);
 void transceiverInit(void);
@@ -141,7 +141,7 @@ void disassemblePacket(struct packetHeader *_packetHeader, uint8_t *receivedData
 void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader *pHeader);
 uint8_t countSetBits(uint8_t n);
 void processHeader(struct headerFlags *_headerFlags, const struct packetHeader *_packetHeader);
-void displayPacket(uint8_t *receivedData, const struct packetHeader *_pHeader);
+void displayPacket(char *receivedData, const struct packetHeader *_pHeader);
 uint8_t calculateChecksum(const uint8_t *receivedData);
 void setHeaderValues(struct packetHeader*, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
 void broadcastRoutingTable(struct packetHeader *pHeader, const uint8_t* rTable, uint8_t* _packet);

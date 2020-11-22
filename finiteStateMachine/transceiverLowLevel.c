@@ -132,19 +132,19 @@ void transceiverInit(void){
 }
 
 /*
- *	Function for initializing timer 1 with 1 microsecond resolution
+ *	Function for initializing timer 2 with 1 microsecond resolution
  */
-void timer1Init(void){
+void timer2Init(void){
   
-	__HAL_RCC_TIM1_CLK_ENABLE();
+	__HAL_RCC_TIM2_CLK_ENABLE();
   
-	tim1.Instance = TIM1;
-	tim1.Init.Prescaler     = (HAL_RCC_GetPCLK2Freq() / 1000000 - 1);
-	tim1.Init.CounterMode   = TIM_COUNTERMODE_UP;
-	tim1.Init.Period        = 0xffff;
-	tim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	tim1.Init.RepetitionCounter = 0;
-	HAL_TIM_Base_Init(&tim1);  
+	tim2.Instance = TIM2;
+	tim2.Init.Prescaler     = (HAL_RCC_GetPCLK2Freq() / 1000000 - 1);
+	tim2.Init.CounterMode   = TIM_COUNTERMODE_UP;
+	tim2.Init.Period        = 0xffff;
+	tim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	tim2.Init.RepetitionCounter = 0;
+	HAL_TIM_Base_Init(&tim2);  
 }
 
 
@@ -158,7 +158,7 @@ void timer17Init(void){
 	tim17.Instance = TIM17;
 	tim17.Init.Prescaler = HAL_RCC_GetPCLK2Freq()/10000 - 1;
 	tim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-	tim17.Init.Period = 10000;
+	tim17.Init.Period = 40000;
 	tim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	tim17.Init.RepetitionCounter = 0;
 	TIM17 -> CR1 |= (TIM_CR1_URS);			// Only counter over/under flow generates interrupt
@@ -177,12 +177,12 @@ void timer17Init(void){
  */
 void microDelay(uint32_t delay){
 
-	HAL_TIM_Base_Start(&tim1);		// Start timer
+	HAL_TIM_Base_Start(&tim2);		// Start timer
 	if(delay <= 65535){
 		
-		TIM1->CNT = 0;       		// Reset counter
+		TIM2->CNT = 0;       		// Reset counter
 		
-		while(TIM1->CNT < delay) {
+		while(TIM2->CNT < delay) {
 			asm volatile ("nop\n");
 		}
     	}
@@ -190,7 +190,7 @@ void microDelay(uint32_t delay){
 		printf("input value for delay should be between 0 and 65536\n");
 	}
 	
-	HAL_TIM_Base_Stop(&tim1);		// Stop timer
+	HAL_TIM_Base_Stop(&tim2);		// Stop timer
 }
 
 
