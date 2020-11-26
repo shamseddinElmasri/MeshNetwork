@@ -1,0 +1,80 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+
+#define MAX_QUEUE_SIZE 10
+
+struct queue {
+    uint8_t packet_Counter;
+    uint8_t *front;
+    uint8_t *rear;
+    uint8_t receivedPackets[10] ;
+}receivePacketsQueue;
+
+
+
+void enqueue(uint8_t x)
+{
+    if(receivePacketsQueue.packet_Counter != MAX_QUEUE_SIZE)
+    {
+    *receivePacketsQueue.rear  = x;
+    receivePacketsQueue.rear = receivePacketsQueue.receivedPackets + (receivePacketsQueue.rear - receivePacketsQueue.receivedPackets + 1)  % MAX_QUEUE_SIZE;
+    receivePacketsQueue.packet_Counter ++;
+    }
+    else
+    {
+        printf("Queue is full\n");
+        return;
+    }
+}
+
+uint8_t dequeue(void)
+{
+    if(receivePacketsQueue.packet_Counter == 0)
+    {
+        printf("Queue is empty\n");
+        return;
+    }
+    else
+    {
+        uint8_t  element = *receivePacketsQueue.front;
+        *receivePacketsQueue.front = 0;
+        receivePacketsQueue.front = receivePacketsQueue.receivedPackets + (receivePacketsQueue.front - receivePacketsQueue.receivedPackets + 1)  % MAX_QUEUE_SIZE;
+        return element;
+    }
+}
+    
+
+void display_queue(void)
+{
+    printf("items: ");
+    for(int i=0; i<MAX_QUEUE_SIZE; i++)
+    {
+        printf("%u ",receivePacketsQueue.receivedPackets[i]);
+    }
+    printf("\n");
+}
+
+int main()
+{
+    uint8_t a;
+    printf("Hello World");
+    memset(receivePacketsQueue.receivedPackets,0,10);
+    receivePacketsQueue.front = receivePacketsQueue.receivedPackets;
+    receivePacketsQueue.rear = receivePacketsQueue.receivedPackets;
+    
+    display_queue();
+    enqueue(1);
+    enqueue(2);
+    display_queue();
+    a = dequeue();
+    printf("a:%u\n",a);
+    a = dequeue();
+    printf("a:%u\n",a);
+    enqueue(3);
+    display_queue();
+    a = dequeue();
+    printf("a:%u\n",a);
+    
+    return 0;
+}
