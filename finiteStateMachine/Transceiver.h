@@ -25,7 +25,7 @@
 
 #define	MYADDRESS	3
 #define PACKETLENGTH	32
-
+#define MAX_QUEUE_SIZE 	320
 
 // Global TypeDefs
 extern SPI_HandleTypeDef hspi2;
@@ -45,8 +45,6 @@ extern	volatile uint8_t secondsCounter;
 extern 	volatile uint8_t ackTransmitFlag;
 extern	volatile uint8_t relayFlag;
 extern 	volatile uint8_t dataTransmitFlag;
-extern uint8_t receivedPacket[32];
-extern volatile uint8_t receivedPacketFlag;
 
 struct packetHeader{
 	uint8_t destAddr;	// Destination address
@@ -64,6 +62,15 @@ struct headerFlags{
 	uint8_t ackFlag;
 	uint8_t lastPacket;
 };
+
+
+struct queue 
+{
+    uint8_t Q_Counter;
+    uint8_t * front;
+    uint8_t * rear;
+    uint8_t receivedBytes[320];
+}rxPacketsQ;
 
 
 /*
@@ -151,6 +158,9 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr);
 void displayRoutingTable(void);
 void deleteInactiveNodes(void);
 void transmitData(uint8_t*);
+void enqueue (uint8_t *rxBytes);
+int8_t dequeue (uint8_t *rxBytes);
+void display_queue (void);
 
 void PRX_Task(void *data);
 void PRX_Init(void* data);

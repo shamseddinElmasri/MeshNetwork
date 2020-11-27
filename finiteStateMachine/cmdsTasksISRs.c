@@ -22,6 +22,10 @@ void PRX_Init(void* data){
 	transceiverInit();
 	timer2Init();	
 	timer17Init();
+	
+	memset(rxPacketsQ.receivedBytes, 0, 320);	// Set queue bytes to 0
+	rxPacketsQ.front = rxPacketsQ.receivedBytes;	// Setting queue front pointer to start position
+	rxPacketsQ.rear = rxPacketsQ.receivedBytes;	// Setting queue rear pointer to start position
 	printf("init done\n");
 }
 
@@ -32,7 +36,8 @@ void PRX_Init(void* data){
 void PRX_Task(void *data){
 	
 	static char receivedData[25];
-
+	static uint8_t receivedPacket[32];
+	
 	static struct packetHeader _pHeader;
 	static struct packetHeader *pHeader = &_pHeader;		// Pointer to instance
   	static struct headerFlags  _hFlags;
@@ -45,16 +50,15 @@ void PRX_Task(void *data){
 		case PRX_STATE:
 		
 			//* Check if received packet */
-			if(receivedPacketFlag){
+			if(rxPacketsQ.Q_Counter > 0){
 				//printf("Packet received\n");
 	
-				//CE_LOW();	// Enter standby-I mode, not sure if this is mandatory...
-
+				memset (receivedPacket, 0, PACKETLENGTH);
+				EXTI->IMR &= 0xFFFFFF7F; 		// Disable EXTI Interrupt
+				dequeue(receivedPacket);
+				EXTI->IMR |= 0x00000080;		// Enable EXTI Interrupt
 				
 				memset(receivedData, 0, 24);	// Clear data array
-
-				
-				receivedPacketFlag = 0;
 				
 				state = CHECK_TYPE_STATE;			// Switch to CHECK_TYPE_STATE
 				break;
@@ -380,11 +384,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 	if(GPIO_Pin == IRQ){
 		
-		memset(receivedPacket, 0, PACKETLENGTH);	// Clear packet array
-		hal_nrf_read_rx_pload(receivedPacket);		// Read received packet
-		hal_nrf_get_clear_irq_flags();			// Clear data ready flag
-		
-		receivedPacketFlag = 1;
+		uint8_t	rxPacket[32] = {0};
+		hal_nrf_read_rx_pload(rxPacket);	// Read received packet
+		enqueue(rxPacket);			// Enqueue received packet
+	
+		hal_nrf_get_clear_irq_flags();		// Clear data ready flag
 	}
 	else{
 		__NOP();

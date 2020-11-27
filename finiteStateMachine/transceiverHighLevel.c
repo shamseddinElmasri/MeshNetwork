@@ -33,6 +33,7 @@ volatile uint8_t dataTransmitFlag = 0;
 uint8_t receivedPacket[32];
 volatile uint8_t receivedPacketFlag = 0;
 
+
 /*************High Level Functions***************/
 /*
  *	Function to set RF data rate
@@ -403,3 +404,51 @@ void deleteInactiveNodes(void){
 
 }
 
+
+
+/*
+ *
+ */
+ 
+void enqueue (uint8_t *rxBytes) {
+  
+	if (rxPacketsQ.Q_Counter != MAX_QUEUE_SIZE){
+      
+        	for (int i=0; i < 32; i++){
+        
+            		*(rxPacketsQ.rear + i) = *(rxBytes + i);
+	    	} 
+ 
+        	rxPacketsQ.rear = rxPacketsQ.receivedBytes + (rxPacketsQ.rear - rxPacketsQ.receivedBytes + 32) % MAX_QUEUE_SIZE;
+      
+ 
+        	rxPacketsQ.Q_Counter += 32;
+    	}
+    	else{
+    		printf ("Queue is full\n");
+		return;
+    	}
+}
+
+
+/*
+ *
+ */
+ 
+int8_t dequeue (uint8_t *rxBytes){
+
+	if (rxPacketsQ.Q_Counter == 0){
+      
+		printf ("Queue is empty\n");
+		return -1;
+	}
+	else{
+		for (int i = 0; i < 32; i++){            
+			*(rxBytes+i) = *(rxPacketsQ.front + i);
+			*(rxPacketsQ.front + i) = 0;
+		} 
+        rxPacketsQ.front = rxPacketsQ.receivedBytes + (rxPacketsQ.front - rxPacketsQ.receivedBytes + 32) % MAX_QUEUE_SIZE;
+        rxPacketsQ.Q_Counter -= 32;
+    }
+    return 0;
+}
