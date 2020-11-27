@@ -5,8 +5,8 @@
 #define MAX_QUEUE_SIZE 30
 
  
-void enqueue (uint8_t x[]);
-uint8_t * dequeue (uint8_t element[]);
+void enqueue (uint8_t *x);
+int8_t dequeue (uint8_t *element);
 void display_queue (void);
 
 struct queue 
@@ -18,13 +18,13 @@ struct queue
 } rxPacketsQ;
 
 
-void enqueue (uint8_t x[]) {
+void enqueue (uint8_t *x) {
   
     if (rxPacketsQ.Q_Counter != MAX_QUEUE_SIZE){
       
         for (int i=0; i < 3; i++){
         
-            *(rxPacketsQ.rear + i) = x[i];
+            *(rxPacketsQ.rear + i) = *(x + i);
 	    } 
  
         rxPacketsQ.rear = rxPacketsQ.receivedBytes + (rxPacketsQ.rear - rxPacketsQ.receivedBytes + 3) % MAX_QUEUE_SIZE;
@@ -43,27 +43,25 @@ void enqueue (uint8_t x[]) {
 
 
  
-uint8_t *dequeue (uint8_t element[]){
+int8_t dequeue (uint8_t *element){
 
     if (rxPacketsQ.Q_Counter == 0){
       
         printf ("Queue is empty\n");
-        return;
+        return -1;
     }
     else{
     
         for (int i = 0; i < 3; i++){
             
-            element[i] = *(rxPacketsQ.front + i);
+            *(element+i) = *(rxPacketsQ.front + i);
 	        *(rxPacketsQ.front + i) = 0;
 	    } 
  
         rxPacketsQ.front = rxPacketsQ.receivedBytes + (rxPacketsQ.front - rxPacketsQ.receivedBytes + 3) % MAX_QUEUE_SIZE;
         rxPacketsQ.Q_Counter -= 3;
-        return element;
-        
     }
- 
+    return 0;
 }
 
 
@@ -101,14 +99,14 @@ int main (){
 
     display_queue ();
 
-    temp = dequeue (a);
+    dequeue (temp);
     printf("dequeued elements: ");
     for(int i=0;i<3;i++){
         printf ("%u ", a[i]);
     }
     printf("\n");
 
-    temp = dequeue (a);
+    dequeue (temp);
     printf("dequeued elements: ");
     for(int i=0;i<3;i++){
         printf ("%u ", a[i]);
@@ -122,11 +120,28 @@ int main (){
  
     display_queue ();
 
-    temp = dequeue (a);
+    dequeue (temp);
     printf("dequeued elements: ");
     for(int i=0;i<3;i++){
         printf ("%u ", a[i]);
     }
     printf("\n");
+    
+    b[0]=10;
+    b[1]=11;
+    b[2]=12;  
+    enqueue (b);
+    
+    display_queue ();
+    
+    dequeue (temp);
+    printf("dequeued elements: ");
+    for(int i=0;i<3;i++){
+        printf ("%u ", a[i]);
+    }
+    printf("\n");
+    
+    display_queue ();
+    
     return 0;
 }
