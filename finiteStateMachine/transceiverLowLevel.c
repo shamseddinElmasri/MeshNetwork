@@ -29,12 +29,16 @@ void spi_init(void){
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_RESET);
 
-	/*Configure GPIO pin : PC0 */
-	GPIO_InitStruct.Pin = GPIO_PIN_0;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	/*Configure GPIO pin : PC7 */
+	GPIO_InitStruct.Pin = IRQ;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
   
+  	/* EXTI interrupt Init*/
+  	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+  	
 	/*Configure GPIO pins : PB8 PB9 */
 	GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;

@@ -31,7 +31,6 @@ void PRX_Init(void* data){
  */
 void PRX_Task(void *data){
 	
-	static uint8_t receivedPacket[32];
 	static char receivedData[25];
 
 	static struct packetHeader _pHeader;
@@ -46,16 +45,16 @@ void PRX_Task(void *data){
 		case PRX_STATE:
 		
 			//* Check if received packet */
-			if(HAL_GPIO_ReadPin(GPIOC,IRQ) == 0){
+			if(receivedPacketFlag){
 				//printf("Packet received\n");
 	
 				//CE_LOW();	// Enter standby-I mode, not sure if this is mandatory...
 
-				memset(receivedPacket, 0, PACKETLENGTH);	// Clear packet array
+				
 				memset(receivedData, 0, 24);	// Clear data array
 
-				hal_nrf_read_rx_pload(receivedPacket);		// Read received packet
-				hal_nrf_get_clear_irq_flags();			// Clear data ready flag
+				
+				receivedPacketFlag = 0;
 				
 				state = CHECK_TYPE_STATE;			// Switch to CHECK_TYPE_STATE
 				break;
@@ -64,9 +63,10 @@ void PRX_Task(void *data){
 		
 			/* Broadcast routing table */
 			if(broadcasting == 1){
+				//printf("secondsCounter = %d\n", secondsCounter);
      				//printf("entered broadcasting branch in PRX mode\n");
-				/* Check if 5-second period elapsed */
-				if(secondsCounter >= 3){
+				/* Check if 12-second period elapsed */
+				if(secondsCounter >= 4){
 					deleteInactiveNodes();  // Delete inactive nodes from routing table
 					secondsCounter = 0;     // Reset seconds counter
 				}
@@ -101,16 +101,10 @@ void PRX_Task(void *data){
 				state = PRX_STATE;			// Switch to PRX state
 	  		
  			}
-	 		else if(pHeader->type == DATA){
+	 		else if(pHeader->type == DATA || pHeader->type == ACK){
 				
 				state = CHECK_ADDRESS_STATE;		// Switch to Check Address State
 				
-			}
- 			else if(pHeader->type == ACK){
- 			
-	 			displayPacket(receivedData, pHeader);
-				CE_HIGH();
-				state = PRX_STATE;			// Switch to PRX state
  			}
 			else{
 				CE_HIGH();
@@ -369,4 +363,30 @@ void TIM17_IRQHandler(void)
 	broadcasting = 1;
 	 
 	TIM17 -> SR &= 0xfffe;	// Reset the Update Interrupt Flag (UIF)                    
+}
+
+/*
+ *
+ */
+void EXTI9_5_IRQHandler(void){
+
+	HAL_GPIO_EXTI_IRQHandler(IRQ);
+}
+
+/*
+ *
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+
+	if(GPIO_Pin == IRQ){
+		
+		memset(receivedPacket, 0, PACKETLENGTH);	// Clear packet array
+		hal_nrf_read_rx_pload(receivedPacket);		// Read received packet
+		hal_nrf_get_clear_irq_flags();			// Clear data ready flag
+		
+		receivedPacketFlag = 1;
+	}
+	else{
+		__NOP();
+	}
 }

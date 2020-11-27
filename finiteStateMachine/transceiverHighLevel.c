@@ -19,7 +19,7 @@ TIM_HandleTypeDef tim17;
 
 // Global variables
 uint8_t routingTable[24] = {0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,255};
-uint8_t advCounter[12]   = {0};
+volatile uint8_t advCounter[12]   = {0};
 char 	ackMessage[25]   = "Ack: Packet Received!";
 char 	txData[25];
 uint8_t	txPacket[32];
@@ -27,9 +27,11 @@ uint8_t	ackPacket[32];
 uint8_t advPacket[32];
 volatile uint8_t broadcasting = 0;
 volatile uint8_t secondsCounter = 0; // Used for creating a 5-second period to delete inactive nodes from routing table
-uint8_t	ackTransmitFlag = 0;
-uint8_t relayFlag = 0;
-uint8_t dataTransmitFlag = 0;
+volatile uint8_t ackTransmitFlag = 0;
+volatile uint8_t relayFlag = 0;
+volatile uint8_t dataTransmitFlag = 0;
+uint8_t receivedPacket[32];
+volatile uint8_t receivedPacketFlag = 0;
 
 /*************High Level Functions***************/
 /*
@@ -253,8 +255,8 @@ void broadcastRoutingTable(struct packetHeader *pHeader, const uint8_t* rTable, 
  */
 void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 
-	static uint8_t gateway[12] = {0};
-	static uint8_t nOfHops[12] = {255,255,255,255,255,255,255,255,255,255,255,255};
+	//static uint8_t gateway[12] = {0};
+	//static uint8_t nOfHops[12] = {255,255,255,255,255,255,255,255,255,255,255,255};
 	uint8_t gWay[12]  = {0};
 	uint8_t nHops[12] = {0};
 	
@@ -270,31 +272,37 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 			nHops[i - 12] = rTable[i];
 		}
 	}
-	
-	gateway[sourceAddr - 1] = sourceAddr;	// Set neighbour as gateway to itself
-	nOfHops[sourceAddr - 1] = 1;
+	routingTable[sourceAddr - 1] = sourceAddr;
+	routingTable[sourceAddr - 1 + 12] = 1;
+	//gateway[sourceAddr - 1] = sourceAddr;	// Set neighbour as gateway to itself
+	//nOfHops[sourceAddr - 1] = 1;
 
 	for(int i = 0; i <= 24; i++){
 		
 		if(i < 12){
 				
 			/* Skip entry if it contains MYADDRESS, sourceAddr, common neighbours or empty */
-			if((i == MYADDRESS - 1) || (i == sourceAddr - 1) || (gateway[i]  == gWay[i])){
+			if((i == MYADDRESS - 1) || (i == sourceAddr - 1) || (routingTable[i]  == gWay[i])){
+			//if((i == MYADDRESS - 1) || (i == sourceAddr - 1) || (gateway[i]  == gWay[i])){
 				continue;
 			}
 			else if(gWay[i] != 0){
 				
 				// Update gateway only if it provides less number of hops
-				if(nHops[i] <= nOfHops[i]){
-		
-					gateway[i] = sourceAddr;	// Set neighbour as gateway to the non-common neighbours
-					nOfHops[i] 	= nHops[i] + 1; // Update number of hops
+				if(nHops[i] <= routingTable[i+12]){
+				//if(nHops[i] <= nOfHops[i]){
+					
+					routingTable[i]   = sourceAddr;	// Set neighbour as gateway to the non-common neighbours
+					routingTable[i+12]= nHops[i] + 1; // Update number of hops
+					//gateway[i] = sourceAddr;	// Set neighbour as gateway to the non-common neighbours
+					//nOfHops[i] 	= nHops[i] + 1; // Update number of hops
 				}		
 			}
 		}
 	}
 		
 	/* Assembling Local Routing Table*/
+/*
 	for(int i = 0; i < 24; i++){
 	
 		if(i < 12){
@@ -304,7 +312,7 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 			routingTable[i] = nOfHops[i - 12];
 		}
 	}
-	
+*/	
 	advCounter[sourceAddr - 1]++;	// Increment counter for advertising node
 }
 
@@ -314,11 +322,12 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
  */
  void displayRoutingTable(void){
 
-	printf("Routing Table:\nNode\tGateway\tHops\n");
+	printf("Routing Table:\nNode\tGateway\tHops\tadvCounter\n");
 	
   for(uint8_t i = 0; i < 12; i++){
 		
-		printf("%d\t%d\t%d\n", i+1, routingTable[i], routingTable[i+12]);
+	printf("%d\t%d\t%d\t%d\n", i+1, routingTable[i], routingTable[i+12], advCounter[i]);
+
   }
   printf("\n");
 }
@@ -370,12 +379,12 @@ void transmitData(uint8_t* _packet){
  *
  */
 void deleteInactiveNodes(void){
-
+	//printf("visited delete inactivenodes()\n");
 	for (uint8_t i = 0; i < 12; i++){
 	
     		/* Check for zero counts */	
 		if (advCounter[i] == 0){
-		
+			//printf("advCounter of node %d: %d\n", i+1, advCounter[i]);
 			/* Delete all nodes associated with inactive node */
 			for(uint8_t j = 0; j < 12; j++){
 
@@ -386,6 +395,11 @@ void deleteInactiveNodes(void){
 				}
 			}
 		}
-  	}          
+  	}
+
+	for (uint8_t i = 0; i < 12; i++){
+		advCounter[i] = 0; 	
+	}   
+
 }
 

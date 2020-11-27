@@ -20,10 +20,10 @@
 
 #define	CE	GPIO_PIN_9
 #define	CSN	GPIO_PIN_8
-#define	IRQ	GPIO_PIN_0
+#define	IRQ	GPIO_PIN_7
 #define PBUTTON	GPIO_PIN_1
 
-#define	MYADDRESS	2
+#define	MYADDRESS	3
 #define PACKETLENGTH	32
 
 
@@ -34,7 +34,7 @@ extern TIM_HandleTypeDef tim17;
 
 // Global Variables
 extern	uint8_t	routingTable[24];
-extern	uint8_t	advCounter[12];
+extern	volatile uint8_t advCounter[12];
 extern	char	txData[25];
 extern	char	ackMessage[25];
 extern 	uint8_t	txPacket[32];
@@ -42,9 +42,11 @@ extern	uint8_t	ackPacket[32];
 extern 	uint8_t advPacket[32];
 extern	volatile uint8_t broadcasting;
 extern	volatile uint8_t secondsCounter;
-extern 	uint8_t	ackTransmitFlag;
-extern	uint8_t relayFlag;
-extern 	uint8_t dataTransmitFlag;
+extern 	volatile uint8_t ackTransmitFlag;
+extern	volatile uint8_t relayFlag;
+extern 	volatile uint8_t dataTransmitFlag;
+extern uint8_t receivedPacket[32];
+extern volatile uint8_t receivedPacketFlag;
 
 struct packetHeader{
 	uint8_t destAddr;	// Destination address
