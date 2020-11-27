@@ -5,8 +5,8 @@
 #define MAX_QUEUE_SIZE 30
 
  
-void enqueue (uint8_t *x);
-int8_t dequeue (uint8_t *element);
+void enqueue (uint8_t *rxBytes);
+int8_t dequeue (uint8_t *rxBytes);
 void display_queue (void);
 
 struct queue 
@@ -18,13 +18,13 @@ struct queue
 } rxPacketsQ;
 
 
-void enqueue (uint8_t *x) {
+void enqueue (uint8_t *rxBytes) {
   
     if (rxPacketsQ.Q_Counter != MAX_QUEUE_SIZE){
       
         for (int i=0; i < 3; i++){
         
-            *(rxPacketsQ.rear + i) = *(x + i);
+            *(rxPacketsQ.rear + i) = *(rxBytes + i);
 	    } 
  
         rxPacketsQ.rear = rxPacketsQ.receivedBytes + (rxPacketsQ.rear - rxPacketsQ.receivedBytes + 3) % MAX_QUEUE_SIZE;
@@ -43,7 +43,7 @@ void enqueue (uint8_t *x) {
 
 
  
-int8_t dequeue (uint8_t *element){
+int8_t dequeue (uint8_t *rxBytes){
 
     if (rxPacketsQ.Q_Counter == 0){
       
@@ -54,7 +54,7 @@ int8_t dequeue (uint8_t *element){
     
         for (int i = 0; i < 3; i++){
             
-            *(element+i) = *(rxPacketsQ.front + i);
+            *(rxBytes+i) = *(rxPacketsQ.front + i);
 	        *(rxPacketsQ.front + i) = 0;
 	    } 
  
@@ -80,7 +80,7 @@ int main (){
     
     uint8_t a[3]={0};
     uint8_t b[3]={0};
-    uint8_t* temp =a;
+    
     memset (rxPacketsQ.receivedBytes, 0, 30);
 
     rxPacketsQ.front = rxPacketsQ.receivedBytes;
@@ -99,14 +99,14 @@ int main (){
 
     display_queue ();
 
-    dequeue (temp);
+    dequeue (a);
     printf("dequeued elements: ");
     for(int i=0;i<3;i++){
         printf ("%u ", a[i]);
     }
     printf("\n");
 
-    dequeue (temp);
+    dequeue (a);
     printf("dequeued elements: ");
     for(int i=0;i<3;i++){
         printf ("%u ", a[i]);
@@ -120,7 +120,7 @@ int main (){
  
     display_queue ();
 
-    dequeue (temp);
+    dequeue (a);
     printf("dequeued elements: ");
     for(int i=0;i<3;i++){
         printf ("%u ", a[i]);
@@ -134,7 +134,7 @@ int main (){
     
     display_queue ();
     
-    dequeue (temp);
+    dequeue (a);
     printf("dequeued elements: ");
     for(int i=0;i<3;i++){
         printf ("%u ", a[i]);
