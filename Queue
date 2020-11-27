@@ -4,64 +4,72 @@
 
 #define MAX_QUEUE_SIZE 10
 
+
+void enqueue(uint8_t x);
+uint8_t dequeue(void);
+void display_queue(void);
+
+
 struct queue {
-    uint8_t packet_Counter;
+    
+    uint8_t Q_Counter;
     uint8_t *front;
     uint8_t *rear;
     uint8_t receivedPackets[10] ;
-}receivePacketsQueue;
+}rxPacketsQ;
 
 
 
-void enqueue(uint8_t x)
-{
-    if(receivePacketsQueue.packet_Counter != MAX_QUEUE_SIZE)
-    {
-    *receivePacketsQueue.rear  = x;
-    receivePacketsQueue.rear = receivePacketsQueue.receivedPackets + (receivePacketsQueue.rear - receivePacketsQueue.receivedPackets + 1)  % MAX_QUEUE_SIZE;
-    receivePacketsQueue.packet_Counter ++;
+void enqueue(uint8_t x){
+    
+    if(rxPacketsQ.Q_Counter != MAX_QUEUE_SIZE){
+        
+        *rxPacketsQ.rear  = x;
+        rxPacketsQ.rear = rxPacketsQ.receivedPackets + (rxPacketsQ.rear - rxPacketsQ.receivedPackets + 1)  % MAX_QUEUE_SIZE;
+        rxPacketsQ.Q_Counter ++;
     }
-    else
-    {
+    else{
         printf("Queue is full\n");
         return;
     }
 }
 
-uint8_t dequeue(void)
-{
-    if(receivePacketsQueue.packet_Counter == 0)
-    {
+uint8_t dequeue(void){
+    
+    if(rxPacketsQ.Q_Counter == 0){
+        
         printf("Queue is empty\n");
         return;
     }
-    else
-    {
-        uint8_t  element = *receivePacketsQueue.front;
-        *receivePacketsQueue.front = 0;
-        receivePacketsQueue.front = receivePacketsQueue.receivedPackets + (receivePacketsQueue.front - receivePacketsQueue.receivedPackets + 1)  % MAX_QUEUE_SIZE;
+    else{
+        
+        uint8_t  element = *rxPacketsQ.front;
+        *rxPacketsQ.front = 0;
+        rxPacketsQ.front = rxPacketsQ.receivedPackets + (rxPacketsQ.front - rxPacketsQ.receivedPackets + 1)  % MAX_QUEUE_SIZE;
+        rxPacketsQ.Q_Counter --;
         return element;
     }
 }
     
 
-void display_queue(void)
-{
-    printf("items: ");
-    for(int i=0; i<MAX_QUEUE_SIZE; i++)
-    {
-        printf("%u ",receivePacketsQueue.receivedPackets[i]);
+void display_queue(void){
+    
+    printf("elements: ");
+    
+    for(int i=0; i<MAX_QUEUE_SIZE; i++){
+    
+        printf("%u ",rxPacketsQ.receivedPackets[i]);
     }
     printf("\n");
 }
 
-int main()
-{
+int main(){
+    
     uint8_t a;
-    printf("Hello World");
-    memset(receivePacketsQueue.receivedPackets,0,10);
-    receivePacketsQueue.front = receivePacketsQueue.receivedPackets;
-    receivePacketsQueue.rear = receivePacketsQueue.receivedPackets;
+    
+    memset(rxPacketsQ.receivedPackets,0,10);
+    rxPacketsQ.front = rxPacketsQ.receivedPackets;
+    rxPacketsQ.rear = rxPacketsQ.receivedPackets;
     
     display_queue();
     enqueue(1);
