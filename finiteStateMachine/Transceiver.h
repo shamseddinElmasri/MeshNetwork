@@ -23,7 +23,7 @@
 #define	IRQ	GPIO_PIN_7
 #define PBUTTON	GPIO_PIN_1
 
-#define	MYADDRESS	3
+#define	MYADDRESS	2
 #define PACKETLENGTH	32
 #define MAX_QUEUE_SIZE 	320
 

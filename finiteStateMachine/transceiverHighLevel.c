@@ -95,10 +95,11 @@ void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader *
 	_packet[5] = pHeader->packetFlags;
 	_packet[6] = pHeader->PID;
 
+	pHeader->checksum = 0;
 	/* Prepare payload field and calculate checksum */
 	for(int i = 0; i < 24; i++){
 		_packet[i + 7] = (uint8_t)payload[i];
-		pHeader->checksum += countSetBits(payload[i]);	// Calculate check sum
+		pHeader->checksum += countSetBits((uint8_t)payload[i]);	// Calculate check sum
  	
 	}
 	_packet[31] = pHeader->checksum;			// Attached checksum byte
@@ -256,8 +257,6 @@ void broadcastRoutingTable(struct packetHeader *pHeader, const uint8_t* rTable, 
  */
 void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 
-	//static uint8_t gateway[12] = {0};
-	//static uint8_t nOfHops[12] = {255,255,255,255,255,255,255,255,255,255,255,255};
 	uint8_t gWay[12]  = {0};
 	uint8_t nHops[12] = {0};
 	
@@ -275,45 +274,25 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 	}
 	routingTable[sourceAddr - 1] = sourceAddr;
 	routingTable[sourceAddr - 1 + 12] = 1;
-	//gateway[sourceAddr - 1] = sourceAddr;	// Set neighbour as gateway to itself
-	//nOfHops[sourceAddr - 1] = 1;
-
-	for(int i = 0; i <= 24; i++){
-		
-		if(i < 12){
-				
-			/* Skip entry if it contains MYADDRESS, sourceAddr, common neighbours or empty */
-			if((i == MYADDRESS - 1) || (i == sourceAddr - 1) || (routingTable[i]  == gWay[i])){
-			//if((i == MYADDRESS - 1) || (i == sourceAddr - 1) || (gateway[i]  == gWay[i])){
-				continue;
-			}
-			else if(gWay[i] != 0){
-				
-				// Update gateway only if it provides less number of hops
-				if(nHops[i] <= routingTable[i+12]){
-				//if(nHops[i] <= nOfHops[i]){
-					
-					routingTable[i]   = sourceAddr;	// Set neighbour as gateway to the non-common neighbours
-					routingTable[i+12]= nHops[i] + 1; // Update number of hops
-					//gateway[i] = sourceAddr;	// Set neighbour as gateway to the non-common neighbours
-					//nOfHops[i] 	= nHops[i] + 1; // Update number of hops
-				}		
-			}
-		}
-	}
-		
-	/* Assembling Local Routing Table*/
-/*
-	for(int i = 0; i < 24; i++){
 	
-		if(i < 12){
-			routingTable[i] = gateway[i];
+	for(int i = 0; i < 12; i++){
+		
+		/* Skip entry if it contains MYADDRESS, sourceAddr, common neighbours or empty */
+		if((i == MYADDRESS - 1) || (i == sourceAddr - 1) || (routingTable[i]  == gWay[i])){
+			continue;
 		}
-		else{
-			routingTable[i] = nOfHops[i - 12];
+		else if(gWay[i] != 0){
+			
+			// Update gateway only if it provides less number of hops
+			if(nHops[i] <= routingTable[i+12]){
+	
+				routingTable[i]   = sourceAddr;	// Set neighbour as gateway to the non-common neighbours
+				routingTable[i+12]= nHops[i] + 1; // Update number of hops
+			}		
 		}
+		
 	}
-*/	
+		
 	advCounter[sourceAddr - 1]++;	// Increment counter for advertising node
 }
 
@@ -407,7 +386,7 @@ void deleteInactiveNodes(void){
 
 
 /*
- *
+ *	This function puts a new received packet to the rear of the queue
  */
  
 void enqueue (uint8_t *rxBytes) {
@@ -432,7 +411,7 @@ void enqueue (uint8_t *rxBytes) {
 
 
 /*
- *
+ *	This function retrieves a packet from the front of the queue
  */
  
 int8_t dequeue (uint8_t *rxBytes){

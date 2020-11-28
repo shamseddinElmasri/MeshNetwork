@@ -51,25 +51,23 @@ void PRX_Task(void *data){
 		
 			//* Check if received packet */
 			if(rxPacketsQ.Q_Counter > 0){
-				//printf("Packet received\n");
 	
 				memset (receivedPacket, 0, PACKETLENGTH);
 				EXTI->IMR &= 0xFFFFFF7F; 		// Disable EXTI Interrupt
 				dequeue(receivedPacket);
 				EXTI->IMR |= 0x00000080;		// Enable EXTI Interrupt
 				
-				memset(receivedData, 0, 24);	// Clear data array
+				memset(receivedData, 0, 25);		// Clear data array
 				
-				state = CHECK_TYPE_STATE;			// Switch to CHECK_TYPE_STATE
+				state = CHECK_TYPE_STATE;		// Switch to CHECK_TYPE_STATE
 				break;
 			}
 		
 		
 			/* Broadcast routing table */
 			if(broadcasting == 1){
-				//printf("secondsCounter = %d\n", secondsCounter);
-     				//printf("entered broadcasting branch in PRX mode\n");
-				/* Check if 12-second period elapsed */
+
+				/* Check if 16-second period elapsed */
 				if(secondsCounter >= 4){
 					deleteInactiveNodes();  // Delete inactive nodes from routing table
 					secondsCounter = 0;     // Reset seconds counter
@@ -91,7 +89,7 @@ void PRX_Task(void *data){
 			break;
 		
 		case CHECK_TYPE_STATE:
-			//printf("Entered Check Type State\n");
+			
 			/* Check packet type */
 			disassemblePacket(pHeader, (uint8_t*)receivedData, receivedPacket); // Disassemble packet
 
@@ -117,7 +115,7 @@ void PRX_Task(void *data){
 			break;
 		
 		case CHECK_ADDRESS_STATE:
-			//printf("Entered Check Address State\n");
+			
 			/* Check Address */
 			if(pHeader->destAddr == MYADDRESS){
 
@@ -137,15 +135,16 @@ void PRX_Task(void *data){
 	  		break;
 	  		
 	  	case PROCESS_PACKET_STATE:	
-			//printf("Entered Process Packet State\n");
-		  	if(pHeader->checksum != calculateChecksum((uint8_t*)receivedData)){
+			
+		  	/*if(pHeader->checksum != calculateChecksum((uint8_t*)receivedData)){
 
 				// Discard packet
 				printf("Checksum error, packet dropped!\n");
+				printf("checksum = %u, should be %u\n",calculateChecksum((uint8_t*)receivedData), pHeader->checksum);
 				CE_HIGH();
 				state = PRX_STATE;			// Switch to PRX state
-			}	  		
-  			else{
+			}*/	  		
+  			//else{
 				displayPacket(receivedData, pHeader);
 
 				/* Update number of hops in routing table */
@@ -163,11 +162,11 @@ void PRX_Task(void *data){
 	  				CE_HIGH();
 					state = PRX_STATE;			// Switch to PRX state	
 	  			}
-	  		}
+	  		//}
 			break;
 	  			
 		case RELAY_PACKET_STATE:
-			//printf("Entered Relay Packet State\n");
+			
 			if(pHeader->TTL == 0){		  
 
 				// Discard packet if TTL reached zero
@@ -187,7 +186,7 @@ void PRX_Task(void *data){
   					pHeader->gateway = routingTable[pHeader->destAddr - 1];	// Update gateway
   					pHeader->TTL--;						// Decrement TTL
 
-					assemblePacket((char*)receivedData, receivedPacket, pHeader); // Reassemble packet
+					assemblePacket(receivedData, receivedPacket, pHeader); // Reassemble packet
 					relayFlag = 1;
 					state = PTX_STATE;
 					
@@ -197,7 +196,7 @@ void PRX_Task(void *data){
 			break;
 			
 		case ACK_STATE:
-			//printf("Entered ACK State\n");
+			
 			/* Prepare Ack packet */
 			setHeaderValues(pHeader, pHeader->sourceAddr, routingTable[pHeader->sourceAddr - 1], MYADDRESS, 255, ACK, 0b0010, 0);
 			assemblePacket(ackMessage, ackPacket, pHeader);
@@ -211,22 +210,22 @@ void PRX_Task(void *data){
 		case PTX_STATE:
 			
 			if(broadcasting){
-				//printf("Entered PTX State, broadcasting branch\n");
+				
 				transmitData(advPacket);        // Broadcast packet
 				broadcasting = 0;               // Reset broadcasting Flag
 			}
 			else if(ackTransmitFlag){
-				//printf("Entered PTX State, ack branch\n");
+				
 				transmitData(ackPacket); 	// Transmit Ack packet	
 				ackTransmitFlag = 0;
 			}
 			else if(relayFlag){
-				//printf("Entered PTX State, relay branch\n");			
+				
 				transmitData(receivedPacket);	// Relay packet
 				relayFlag = 0;
 			}
 			else if(dataTransmitFlag){
-				//printf("Entered PTX State, data transmit branch\n");
+				
 				transmitData(txPacket);		// Transmit data
 				dataTransmitFlag = 0;
 			}
@@ -378,7 +377,7 @@ void EXTI9_5_IRQHandler(void){
 }
 
 /*
- *
+ *	ISR executes whenever module receives a packet
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
