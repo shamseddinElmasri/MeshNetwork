@@ -127,7 +127,7 @@ void PRX_Task(void *data){
 	  		}
 	  		else{
 	  			// Discard packet
-	  			printf("Wrong gateway, packet dropped!\n");
+	  			//printf("Wrong gateway, packet dropped!\n");
 	  			CE_HIGH();
 				state = PRX_STATE;			// Switch to PRX state
 	  		}

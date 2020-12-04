@@ -162,7 +162,7 @@ void timer17Init(void){
 	tim17.Instance = TIM17;
 	tim17.Init.Prescaler = HAL_RCC_GetPCLK2Freq()/10000 - 1;
 	tim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-	tim17.Init.Period = 40000;
+	tim17.Init.Period = 50000;
 	tim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	tim17.Init.RepetitionCounter = 0;
 	TIM17 -> CR1 |= (TIM_CR1_URS);			// Only counter over/under flow generates interrupt
