@@ -2,6 +2,7 @@
  * Transceiver.h
  *
  *  Created on: Oct 12, 2020
+ *  Last modified: Dec 13, 2020
  *      Author: Shamseddin Elmasri
  */
 
@@ -16,35 +17,55 @@
 #include "hal_nrf_reg.h"
 #include "nordic_common.h"
 
+/************** Defines ******************/
 
-
-#define	CE	GPIO_PIN_9
-#define	CSN	GPIO_PIN_8
+// MCU/Transceiver Interface
 #define	IRQ	GPIO_PIN_7
-#define PBUTTON	GPIO_PIN_1
+#define	CSN	GPIO_PIN_8
+#define	CE	GPIO_PIN_9
 
-#define	MYADDRESS	2
+#define	MYADDRESS	1	// Unique for each node
 #define PACKETLENGTH	32
-#define MAX_QUEUE_SIZE 	320
+#define MAX_QUEUE_SIZE 	320	// 10 32-byte packets
+#define MAX_NODE	12	// Maximum node address
 
-// Global TypeDefs
+// RF_SETUP register bit definitions for nRF24L01+
+#define CONT_WAVE	7	// RF_SETUP register bit 7
+#define RF_DR_LOW	5	// RF_SETUP register bit 5
+
+
+
+/*********** Global TypeDefs **************/
+
 extern SPI_HandleTypeDef hspi2;
 extern TIM_HandleTypeDef tim2;
 extern TIM_HandleTypeDef tim17;
 
-// Global Variables
+
+
+/************ Global Variables ************/
+
 extern	uint8_t	routingTable[24];
-extern	volatile uint8_t advCounter[12];
-extern	char	txData[25];
-extern	char	ackMessage[25];
-extern 	uint8_t	txPacket[32];
-extern	uint8_t	ackPacket[32];
-extern 	uint8_t advPacket[32];
-extern	volatile uint8_t broadcasting;
-extern	volatile uint8_t secondsCounter;
-extern 	volatile uint8_t ackTransmitFlag;
-extern	volatile uint8_t relayFlag;
-extern 	volatile uint8_t dataTransmitFlag;
+extern	volatile uint8_t advCounter[12];	// Used to count advertising nodes activity
+extern	char	txData[25];			// Payload to be transmitted (Data packet)
+extern	char	ackMessage[25];			// Payload to be transmitted for Ack (Ack Packet)
+extern 	uint8_t	txPacket[32];			// Data packet to be transmitted
+extern	uint8_t	ackPacket[32];			// Ack packet to be transmitted
+extern 	uint8_t advPacket[32];			// Advertisement packet to be transmitted
+
+
+
+/************ Global Flags ************/
+
+extern	volatile uint8_t broadcasting;		// Flag to indicate time for broadcasting
+extern	volatile uint8_t secondsCounter;	// To create 20-sec period to delete inactive nodes
+extern 	volatile uint8_t ackTransmitFlag;	// Raised when Ack is required by source node
+extern	volatile uint8_t relayFlag;		// Raised after reassembling received packet in RELAY_PACKET_STATE
+extern 	volatile uint8_t dataTransmitFlag;	// Raised in txPacket command when data packet is ready
+
+
+
+/************ Structures ************/
 
 struct packetHeader{
 	uint8_t destAddr;	// Destination address
@@ -73,6 +94,10 @@ struct queue
 }rxPacketsQ;
 
 
+
+
+/************ Enums ************/
+
 /*
  *  enum for node state
  */
@@ -87,18 +112,6 @@ enum nodeState{
 	PTX_STATE
 };
 
-/*
- * enum for node address
- */
-enum nodeAddr{
-	NODE_1	= 1,
-	NODE_2,
-	NODE_3,
-	NODE_4,
-	NODE_5,
-	NODE_6,
-	MAX_NODE
-}gateway;
 
 /*
  * enum for packet type
@@ -108,25 +121,23 @@ enum packetType{
 	DATA = 0,
 	ADVERTISEMENT,
 	ACK,
-	PACKET_TYPE_MAX
-	
+	PACKET_TYPE_MAX	
 };
+
 
 /*
  * enum for data rate (made for nRF24L01+)
  */
 typedef enum {
 
-	DATA_RATE_250KBPS,	/**< Datarate set to 250 Kbps  */
-	DATA_RATE_1MBPS,        /**< Datarate set to 1 Mbps  */
-	DATA_RATE_2MBPS         /**< Datarate set to 2 Mbps  */
+	DATA_RATE_250KBPS,	// Datarate set to 250 Kbps
+	DATA_RATE_1MBPS,        // Datarate set to 1 Mbps  
+	DATA_RATE_2MBPS         // Datarate set to 2 Mbps  
   
 }dataRate;
 
 
-// RF_SETUP register bit definitions for nRF24L01+
-#define CONT_WAVE	7	/**< RF_SETUP register bit 7 */
-#define RF_DR_LOW	5	/**< RF_SETUP register bit 5 */
+/************ Private Function Prototypes ************/
 
 // Low Level Functions
 void CSN_LOW(void);
@@ -138,7 +149,7 @@ void timer2Init(void);
 void timer17Init(void);
 void microDelay(uint32_t delay);
 void transceiverInit(void);
-uint8_t spiTransaction(uint8_t *tx, uint8_t *rx, uint8_t nOfBytes);
+void spiTransaction(uint8_t *tx, uint8_t *rx, uint8_t nOfBytes);
 void readAllRegisters(void);
 void PTX_Mode();
 void PRX_Mode();
@@ -162,8 +173,10 @@ void enqueue (uint8_t *rxBytes);
 int8_t dequeue (uint8_t *rxBytes);
 void display_queue (void);
 
-void PRX_Task(void *data);
+// Main Task Functions
 void PRX_Init(void* data);
+void PRX_Task(void *data);
+
 
 
 

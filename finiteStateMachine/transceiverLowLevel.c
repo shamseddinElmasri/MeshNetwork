@@ -12,8 +12,12 @@
 #include "Transceiver.h"
 
 
+
 /*
- *	Function for SPI and GPIO initialization
+ * Function:	spi_init()
+ * Description:	Initializes SPI and GPIO							
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void spi_init(void){
 
@@ -27,7 +31,7 @@ void spi_init(void){
 	__HAL_RCC_SPI2_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, CSN|CE, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin : PC7 */
 	GPIO_InitStruct.Pin = IRQ;
@@ -39,8 +43,8 @@ void spi_init(void){
   	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
   	
-	/*Configure GPIO pins : PB8 PB9 */
-	GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
+	/*Configure GPIO pins : PB8 and PB9 */
+	GPIO_InitStruct.Pin = CSN|CE;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -80,8 +84,13 @@ void spi_init(void){
 	}
 }
 
+
+
 /*
- *	Function for initializing the tranceiver and setting it as receiver
+ * Function:	transceiverInit()
+ * Description:	Initializes the tranceiver and sets it in receiver mode
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void transceiverInit(void){
 
@@ -125,7 +134,6 @@ void transceiverInit(void){
 	uint8_t txAddr[] = {0x61, 0x37, 0x71, 0xF4, 0x94};	// Address of destination
 	hal_nrf_set_address(HAL_NRF_TX, txAddr);		// Set Tx address
 
-
 	hal_nrf_flush_rx();					// Flush Rx FIFO
 
 	hal_nrf_flush_tx();					// Flush TX FIFO
@@ -135,8 +143,13 @@ void transceiverInit(void){
 	CE_HIGH();						// Set chip enable bit high
 }
 
+
+
 /*
- *	Function for initializing timer 2 with 1 microsecond resolution
+ * Function:	timer2Init()
+ * Description:	Initializes timer 2 with 1 microsecond resolution
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void timer2Init(void){
   
@@ -152,10 +165,14 @@ void timer2Init(void){
 }
 
 
-//Function name: timer17Init()
-//Description: Initializes timer17 to have a 1 millisecond tick, and enables the overflow interrupt
-//Parameters: void
-//Returns: void
+
+
+/*
+ * Function:	timer17Init()
+ * Description:	Initializes timer17 with 1 millisecond resolution, and enables the overflow interrupt
+ * Parameters: 	Nothing
+ * Returns:	Nothing
+ */
 void timer17Init(void){
 
 	__HAL_RCC_TIM17_CLK_ENABLE();
@@ -176,8 +193,13 @@ void timer17Init(void){
 }
 
 
+
 /*
- * This function generates a delay in microsenconds using timer 1
+ * Function:	microDelay()
+ * Description:	Generates a delay in microsenconds using timer 2
+ * Parameters: 	
+ * 		uint32_t delay: Desired delay in microseconds
+ * Returns:	Nothing
  */
 void microDelay(uint32_t delay){
 
@@ -198,54 +220,85 @@ void microDelay(uint32_t delay){
 }
 
 
-/*************Low Level Functions***************/
 
 /*
- *	This funciton performs a SPI transaction with customized number of bytes
- *	used for reading all transceiver registers for monitoring and troubleshooting 
+ * Function:	spiTransaction()
+ * Description:	Performs a SPI transaction with customized number of bytes
+ *		used for reading all transceiver registers for monitoring and troubleshooting
+ * Parameters: 	
+ * 		uint8_t *tx: Points to byte to be transmitted
+ *	 	uint8_t *rx: Points to received byte
+ *		uint8_t nOfBytes: Number of bytes
+ *
+ * Returns:	Nothing
  */
-uint8_t spiTransaction(uint8_t *tx, uint8_t *rx, uint8_t nOfBytes){
+void spiTransaction(uint8_t *tx, uint8_t *rx, uint8_t nOfBytes){
 
 	CSN_LOW();
 	HAL_SPI_TransmitReceive(&hspi2, tx, rx, nOfBytes, 100);
 	CSN_HIGH();
-	return *rx;
 }
 
+
+
+
 /*
- *
+ * Function:	CSN_LOW()
+ * Description:	Sets chip select pin low to start SPI transaction
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void CSN_LOW(void){
 
 	HAL_GPIO_WritePin(GPIOB, CSN, GPIO_PIN_RESET);
 }
 
+
+
 /*
- *
+ * Function:	CSN_HIGH()
+ * Description:	Sets chip select pin high to end SPI transaction
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void CSN_HIGH(void){
 
 	HAL_GPIO_WritePin(GPIOB, CSN, GPIO_PIN_SET);
 }
 
+
+
 /*
- *
+ * Function:	CE_LOW()
+ * Description:	Sets chip enable pin low to activate transceiver module 
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void CE_LOW(void){
 
 	HAL_GPIO_WritePin(GPIOB, CE, GPIO_PIN_RESET);
 }
 
+
+
 /*
- *
+ * Function:	CE_HIGH()
+ * Description:	Sets chip enable pin low to deactivate transceiver module 
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void CE_HIGH(void){
 
 	HAL_GPIO_WritePin(GPIOB, CE, GPIO_PIN_SET);
 }
 
+
+
 /*
- *	Read All registers
+ * Function:	readAllRegisters()
+ * Description:	Reads all registers in transceiver module (Used for debugging)
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void readAllRegisters(void){
 

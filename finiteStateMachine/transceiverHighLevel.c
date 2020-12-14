@@ -17,26 +17,32 @@ SPI_HandleTypeDef hspi2;
 TIM_HandleTypeDef tim2;
 TIM_HandleTypeDef tim17;
 
-// Global variables
+// Global Variables
 uint8_t routingTable[24] = {0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,255,255,255,255,255,255,255,255};
 volatile uint8_t advCounter[12]   = {0};
 char 	ackMessage[25]   = "Ack: Packet Received!";
 char 	txData[25];
 uint8_t	txPacket[32];
+uint8_t receivedPacket[32];
 uint8_t	ackPacket[32];
 uint8_t advPacket[32];
+volatile uint8_t secondsCounter = 0; // Used for creating a 20-second period to delete inactive nodes from routing table
+
+// Global Flags
 volatile uint8_t broadcasting = 0;
-volatile uint8_t secondsCounter = 0; // Used for creating a 5-second period to delete inactive nodes from routing table
 volatile uint8_t ackTransmitFlag = 0;
 volatile uint8_t relayFlag = 0;
 volatile uint8_t dataTransmitFlag = 0;
-uint8_t receivedPacket[32];
 volatile uint8_t receivedPacketFlag = 0;
 
 
 /*************High Level Functions***************/
 /*
- *	Function to set RF data rate
+ * Function:	setDataRate()
+ * Description:	Sets RF data rate
+ * Parameters: 	
+ * 		dataRate dRate: Data rate to be set
+ * Returns:	Nothing
  */
 void setDataRate(dataRate dRate){
 
@@ -54,8 +60,15 @@ void setDataRate(dataRate dRate){
 }
 
 
+
 /*
- *	Function for disassembling a received packet
+ * Function:	disassemblePacket()
+ * Description:	Disassembles received packet
+ * Parameters: 	
+ * 		struct packetHeader *_packetHeader: Points to the packet header structure of received packet 
+ *		uint8_t *receivedData: Points to the payload of received packet
+ *		uint8_t *receivedPacket: Points to the whole received packet
+ * Returns:	Nothing
  */
 void disassemblePacket(struct packetHeader *_packetHeader, uint8_t *receivedData, uint8_t *receivedPacket){
 
@@ -71,7 +84,7 @@ void disassemblePacket(struct packetHeader *_packetHeader, uint8_t *receivedData
 
 	/* Extract data */
 	for(int i = 0; i < 24; i++){
-		receivedData[i] = receivedPacket[7 + i];
+		receivedData[i] = receivedPacket[7 + i];	// Copying payload portion of the received packet
 	}
 
 	_packetHeader->checksum = receivedPacket[31];
@@ -79,12 +92,19 @@ void disassemblePacket(struct packetHeader *_packetHeader, uint8_t *receivedData
 }
 
 
+
 /*
- *	Function for packet assembly
+ * Function:	assemblePacket()
+ * Description:	Assembles packet to be transmitted
+ * Parameters: 	
+ * 		const char* payload: Points to the payload portion of packet to be transmitted
+ *		uint8_t* _packet: Points to the whole packet to be transmitted
+ *		struct packetHeader *pHeader: Points to packet header structure of packet to be transmitted
+ * Returns:	Nothing
  */
 void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader *pHeader){
 	
-	memset(_packet, 0, PACKETLENGTH);			// Clear packet
+	memset(_packet, 0, PACKETLENGTH);		// Clear packet
 
 	/* Assemble packet header fields */
 	_packet[0] = pHeader->destAddr;
@@ -100,24 +120,21 @@ void assemblePacket(const char* payload, uint8_t* _packet, struct packetHeader *
 	for(int i = 0; i < 24; i++){
 		_packet[i + 7] = (uint8_t)payload[i];
 		pHeader->checksum += countSetBits((uint8_t)payload[i]);	// Calculate check sum
- 	
 	}
-	_packet[31] = pHeader->checksum;			// Attached checksum byte
+	_packet[31] = pHeader->checksum;				// Attach checksum byte
 }
 
 
+
 /*
- *	Function for abstracting received packet header fields
+ * Function:	processHeader()
+ * Description:	Abstracts received packet header fields
+ * Parameters: 	
+ * 		struct headerFlags *_headerFlags: Points to packet header flags structure
+ *		const struct packetHeader *_packetHeader: Points to packet header structure
+ * Returns:	Nothing
  */
 void processHeader(struct headerFlags *_headerFlags, const struct packetHeader *_packetHeader){
-
-
-	/* Check destination address */
-	if(_packetHeader->destAddr != MYADDRESS){
-
-		printf("This packet is not for this node.\n");
-		printf("Need to check routing table.\n");
-		}
 
 	/* Check source address */
 	if( (_packetHeader->sourceAddr >= MAX_NODE) || (_packetHeader->sourceAddr < 0)){
@@ -139,8 +156,8 @@ void processHeader(struct headerFlags *_headerFlags, const struct packetHeader *
 		default:  	    printf("Invalid packet type\n");	break;
 	}
 
-	/* Check packet flags */
-
+	/* Check packet header flags */
+	
 	if((_packetHeader->packetFlags & 0x01) != 0){
 		_headerFlags->ackFlag = 1;
 		printf("Ack is required\n");
@@ -160,19 +177,23 @@ void processHeader(struct headerFlags *_headerFlags, const struct packetHeader *
 	}
 
 	/* Check Packet ID */
-
 	printf("Packet ID: %d\n", _packetHeader->PID);
 
 	/* Display checksum */
-
 	printf("Checksum: %d\n", _packetHeader->checksum);
 
 	printf("\n");
 }
 
 
+
 /*
- *	Function for displaying recieved data
+ * Function:	displayPacket()
+ * Description:	Displays recieved data and its associated header field information
+ * Parameters: 	
+ * 		char *receivedData: Points to payload portion of received packet
+ *		const struct packetHeader *pHeader: Points to packet header structure of received packet 
+ * Returns:	Nothing
  */
 void displayPacket(char *receivedData, const struct packetHeader *pHeader){
 
@@ -187,10 +208,14 @@ void displayPacket(char *receivedData, const struct packetHeader *pHeader){
 }
 
 
-/*
- *	Function for calculating checksum
- */
 
+/*
+ * Function:	calculateChecksum()
+ * Description:	Calculates checksum
+ * Parameters: 	
+ * 		const uint8_t *payload: Points to the payload portion of packet being process
+ * Returns:	result of checksum
+ */
 uint8_t calculateChecksum(const uint8_t *payload){
 
 	uint8_t checksum = 0;
@@ -205,7 +230,11 @@ uint8_t calculateChecksum(const uint8_t *payload){
 
 
 /*
- *	Function for counting set bits for a given number
+ * Function:	countSetBits()
+ * Description:	Counts the '1' bits for a given byte
+ * Parameters: 	
+ * 		uint8_t n: Number to be calculated
+ * Returns:	Total count of '1' bits
  */
 uint8_t countSetBits(uint8_t n)
 {
@@ -218,8 +247,20 @@ uint8_t countSetBits(uint8_t n)
 }
 
 
+
 /*
- *	Function for setting packet header fields
+ * Function:	setHeaderValues()
+ * Description:	Sets packet header fields
+ * Parameters: 	
+ * 		struct packetHeader *pHeader: Points to packet header structure of packet to be transmitted
+ *		uint8_t destAddr: Destination node
+ *		uint8_t gateway: Gateway node
+ *		uint8_t sourceAddr: Source node
+ *		uint8_t TTL: Time to live 
+ *		uint8_t type: Packet type
+ *		uint8_t packetFlags:
+ *		uint8_t PID: Packet ID
+ * Returns:	Nothing
  */
 void setHeaderValues(struct packetHeader *pHeader, uint8_t destAddr, uint8_t gateway, uint8_t sourceAddr, uint8_t TTL, uint8_t type, uint8_t packetFlags, uint8_t PID){
 
@@ -230,12 +271,19 @@ void setHeaderValues(struct packetHeader *pHeader, uint8_t destAddr, uint8_t gat
 	pHeader->type = type;
 	pHeader->packetFlags = packetFlags;
 	pHeader->PID = PID;
-	pHeader->checksum = 0;
+	pHeader->checksum = 0;	// Set to zero since it will be calculated later
 }
 
 
+
 /*
- * Function for preparing packet for advertisement
+ * Function:	broadcastRoutingTable()
+ * Description:	Prepars packet for advertisement
+ * Parameters: 	
+ * 		struct packetHeader *pHeader: Points to packet header structure of advertisement packet to be broadcasted
+ *		const uint8_t* rTable: Points to routing table
+ *		uint8_t* _packet: Points to advertisement packet to be broadcasted
+ * Returns:	Nothing
  */
 void broadcastRoutingTable(struct packetHeader *pHeader, const uint8_t* rTable, uint8_t* _packet){
 
@@ -252,8 +300,14 @@ void broadcastRoutingTable(struct packetHeader *pHeader, const uint8_t* rTable, 
 }
 
 
+
 /*
- *	Function for updating routing table
+ * Function:	updateRoutingTable()
+ * Description:	Updates routing table
+ * Parameters: 	
+ * 		const uint8_t *rTable: Points to received routing table 
+ *		uint8_t sourceAddr: Source node that broadcasted the routing table
+ * Returns:	Nothing
  */
 void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 
@@ -297,8 +351,13 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
 }
 
 
+
 /*
- *
+ * Function:	displayRoutingTable()
+ * Description:	Displays routing table on terminal
+ *		advCounter is also displayed to trace the activity of neighbouring nodes
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
  void displayRoutingTable(void){
 
@@ -312,9 +371,13 @@ void updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr){
   printf("\n");
 }
 
- 
+
+
 /*
- *	This function flushes TX FIFO and sets transceiver as transmitter
+ * Function:	PTX_Mode()
+ * Description:	Flushes TX FIFO and sets transceiver in transmitter mode
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void PTX_Mode(void){
 
@@ -325,8 +388,12 @@ void PTX_Mode(void){
 }
 
 
+
 /*
- *	This function flushes RX FIFO and sets transceiver as receiver
+ * Function:	PRX_Mode()
+ * Description:	Sets transceiver in receiver mode
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void PRX_Mode(void){
 
@@ -337,14 +404,18 @@ void PRX_Mode(void){
 }
 
 
+
 /*
- *
+ * Function:	transmitData()
+ * Description: Transmits packet	
+ * Parameters: 	uint8_t* _packet: Points to packet to be transmitted
+ * Returns:	Nothing
  */
 void transmitData(uint8_t* _packet){
 
 	CE_LOW();
 	microDelay(200);
-	PTX_Mode();
+	PTX_Mode();						// Set transceiver to transmitter mode
 	microDelay(200);
 	hal_nrf_write_tx_pload(_packet , PACKETLENGTH);		// Load packet
 	CE_HIGH();						// Transmit packet
@@ -355,16 +426,20 @@ void transmitData(uint8_t* _packet){
 
 
 
+
 /*
- *
+ * Function:	deleteInactiveNodes()
+ * Description: Deletes unreachable/inactive nodes from the routing table
+ * Parameters: 	Nothing
+ * Returns:	Nothing
  */
 void deleteInactiveNodes(void){
-	//printf("visited delete inactivenodes()\n");
+	
 	for (uint8_t i = 0; i < 12; i++){
 	
     		/* Check for zero counts */	
 		if (advCounter[i] == 0){
-			//printf("advCounter of node %d: %d\n", i+1, advCounter[i]);
+			
 			/* Delete all nodes associated with inactive node */
 			for(uint8_t j = 0; j < 12; j++){
 
@@ -376,19 +451,21 @@ void deleteInactiveNodes(void){
 			}
 		}
   	}
-
+	/* Reset counters */
 	for (uint8_t i = 0; i < 12; i++){
 		advCounter[i] = 0; 	
 	}   
-
 }
 
 
 
+
 /*
- *	This function puts a new received packet to the rear of the queue
- */
- 
+ * Function:	enqueue()
+ * Description: Puts a new received packet to the rear of the queue
+ * Parameters: 	uint8_t *rxBytes: Points to the new received packet to be enqueued
+ * Returns:	Nothing
+ */ 
 void enqueue (uint8_t *rxBytes) {
   
 	if (rxPacketsQ.Q_Counter != MAX_QUEUE_SIZE){
@@ -410,10 +487,13 @@ void enqueue (uint8_t *rxBytes) {
 }
 
 
+
 /*
- *	This function retrieves a packet from the front of the queue
- */
- 
+ * Function:	dequeue()
+ * Description: Retrieves a packet from the front of the queue
+ * Parameters: 	uint8_t *rxBytes: Points to the packet at the front of the queue to be dequeued
+ * Returns:	0 for success, -1 for failure
+ */  
 int8_t dequeue (uint8_t *rxBytes){
 
 	if (rxPacketsQ.Q_Counter == 0){
