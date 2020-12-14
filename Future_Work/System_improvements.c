@@ -21,8 +21,8 @@ TIM_HandleTypeDef tim3;        //used for dynamic output power
 TIM_HandleTypeDef tim16;       //used for auto retransmission
 static enum nodeState state;
 
-void decrease_op_power(void);  //for decreasing output power by a step
-void increase_op_power(void);  //for increasing output power by a step    
+void decrease_op_power(void);  // decreasing output power by a step
+void increase_op_power(void);  // increasing output power by a step    
 
 /* Timer 3 used for implementing Dynamic output power algorithm */
 void Timer3Init_IT(void)
@@ -30,9 +30,9 @@ void Timer3Init_IT(void)
   __HAL_RCC_TIM3_CLK_ENABLE();
   
   tim3.Instance = TIM3;
-  tim3.Init.Prescaler     = 7199;                              //divide the sysclk with 7199 to get 0.1 milli seconds resolution
+  tim3.Init.Prescaler     = 7199;                   //divide the sysclk with 7199 to get 0.1 milli seconds resolution
   tim3.Init.CounterMode   = TIM_COUNTERMODE_UP;
-  tim3.Init.Period        = 40;                               //invoking periodelapsedcallback function(ISR) for every 4000 microseconds
+  tim3.Init.Period        = 40;                     //invoking periodelapsedcallback function(ISR) for every 4000 microseconds
   tim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   tim3.Init.RepetitionCounter = 0;
   HAL_TIM_Base_Init(&tim3);
@@ -42,7 +42,7 @@ void Timer3Init_IT(void)
   /* Enable the TIM6 global Interrupt */
   HAL_NVIC_EnableIRQ(TIM3_IRQn);
 
-  //HAL_TIM_Base_Start_IT(&tim3);     //Enabling the timer with interrupt enable and we will enable it after transmitting a packet which requires acknowledgement
+  //HAL_TIM_Base_Start_IT(&tim3);                   //Enabling the timer with interrupt enable and we will enable it after transmitting a packet which requires acknowledgement
 	//printf("Timer3 has initialized successfully with interrupt enabled\n");      
 }
 /**
@@ -74,7 +74,7 @@ void Timer16_Init_IT(void)
   /* Enable the TIM16 global Interrupt */
   HAL_NVIC_EnableIRQ(TIM16_IRQn);
 
-  //HAL_TIM_Base_Start_IT(&tim16);     //Enabling the timer with interrupt enable and we will enable it after transmitting a packet which requires acknowledgement
+  //HAL_TIM_Base_Start_IT(&tim16); //Enabling the timer with interrupt enable and we will enable it after transmitting a packet which requires acknowledgement
   //printf("Timer16 has initialized successfully with interrupt enabled\n");
 }
 /**
@@ -90,61 +90,61 @@ void TIM16_IRQHandler(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM3) {                            //checks whether interrput raises by TIM3 to do Dynamic output power
-		if(/*ack_Packet == 1*/1)                                    // A flag to indicate acknowlegement is received
-		  {
+		if(/*ack_Packet == 1*/1)                               // A flag to indicate acknowlegement is received
+		{
 			if(power_flag == flag_18DBM)                         //if we're already using minimum output power then stop interrupt timer and proceed with data stream
-				{
-					//proceed with data stream;
-					HAL_TIM_Base_Stop_IT(&tim3);
-				}
+			{
+				//proceed with data stream;
+				HAL_TIM_Base_Stop_IT(&tim3);
+			}
 			else
-					{
-						decrease_op_power();                          //if we're not using minimum output power then increment the power by 1 lvl & restart the timer and start the process again
-						TIM3->CNT = 0;
-						HAL_TIM_Base_Start_IT(&tim3);
-					}
-		  }
+			{
+				decrease_op_power();                           //if not using minimum output power then increment the power by 1 lvl & restart the timer and start the process again
+				TIM3->CNT = 0;
+				HAL_TIM_Base_Start_IT(&tim3);
+			}
+		 }
 		else
-				{
-					if(power_flag != flag_0DBM)                     //if we're not using the maximum output power then increment the output power by 1 lvl and proceed with data stream
-						{
-							increase_op_power();
-							//proceed with data stream;
-							HAL_TIM_Base_Stop_IT(&tim3);
-						}
-					else
-						  {                                          //if we're using the maximum output power and cannot reach the destination node then update the routing table.
-								//updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr); 
-								state = PRX_STATE;
-							}
-				}
+		{
+			if(power_flag != flag_0DBM)                      //if not using the maximum output power then increment the output power by 1 lvl and proceed with data stream
+			{
+				increase_op_power();
+				//proceed with data stream;
+				HAL_TIM_Base_Stop_IT(&tim3);
+			}
+			else
+			{   //if using the maximum output power and cannot reach the destination node then update the routing table.
+				//updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr); 
+				state = PRX_STATE;
+			}
+		}
 	}
   /****************************************************************************************************************************/
-	if (htim->Instance == TIM16) {                            //checks whether interrput raises by TIM16 to do auto retransmission
+	if (htim->Instance == TIM16) {                                             //checks whether interrput raises by TIM16 to do auto retransmission
     
-		static uint8_t retransmission_Counter = 0;              //using static, cause we don't need old values to get re-written until we assign '0' to it
-		uint8_t max_Retransmission_Attempts = 5;                //desired number of retransmission attempts
-		if(/*ack_Packet == 1*/ 1)                                     // A flag to indicate acknowlegement is received
-		  {
+		static uint8_t retransmission_Counter = 0;                               //using static, cause we don't need old values to get re-written until we assign '0' to it
+		uint8_t max_Retransmission_Attempts = 5;                                 //desired number of retransmission attempts
+		if(/*ack_Packet == 1*/ 1)                                                // A flag to indicate acknowlegement is received
+		{
 			retransmission_Counter = 0;
-			HAL_TIM_Base_Stop_IT(&tim16);                         // Stopping the timer16(ISR)
-			state = PRX_STATE;                                    //go back to receiver mode
-		  }
-	    else if(retransmission_Counter >= max_Retransmission_Attempts)// if counter reaches max_Retransmission_Attempts, then reset the counter, discard packet and update the routing table
-					   {
-						 retransmission_Counter = 0;
-						 //Discard the packet;
-						 //updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr);    /* Update the routing table, cause destination node is not available to give the acknowledgement back, So the the destination node should be deleted and if that destination node acts as a gateway to reach other nodes, then those nodes should also be deleted. */
-						 TIM16->CNT = 0;
-						 HAL_TIM_Base_Stop_IT(&tim16);
-					   }
-				     else if(retransmission_Counter < max_Retransmission_Attempts)       /* if retransmission_counter doesn't excees the max_Retransmission_Attempts */
-						        {
-							      retransmission_Counter ++;
-							      //transmitData(uint8_t* _packet);               /*  Use same packet to transmit;  increment the counter,reset timer16 counter and use the same packet to re-transmit. */ 						
-						        TIM16->CNT = 0;                                 /*  Reset Timer 16 counter to 0, to start the timer again */
-					          }
-  }
+			HAL_TIM_Base_Stop_IT(&tim16);                                          // Stopping the timer16(ISR)
+			state = PRX_STATE;                                                     //go back to receiver mode
+		}
+	    else if(retransmission_Counter >= max_Retransmission_Attempts)
+		{
+			retransmission_Counter = 0;
+			//Discard the packet;
+			//updateRoutingTable(const uint8_t *rTable, uint8_t sourceAddr);   
+			TIM16->CNT = 0;
+			HAL_TIM_Base_Stop_IT(&tim16);
+		}
+		else if(retransmission_Counter < max_Retransmission_Attempts)   // if retransmission_counter doesn't excees the max_Retransmission_Attempts
+		{
+		    retransmission_Counter ++;
+		    //transmitData(uint8_t* _packet);                        //  Use same packet to re-transmit;  increment the counter,reset timer16 counter						
+		    TIM16->CNT = 0;                                          //  Reset Timer 16 counter to 0, to start the timer again
+		}
+	}
 }
 
 // FUNCTION      : decrease_op_power
@@ -157,19 +157,19 @@ void decrease_op_power()
 {
 	if(power_flag == flag_0DBM)
 	{
-		hal_nrf_set_output_power(HAL_NRF_6DBM); //if 0dbm then output power is at 0dBM and setting it to -6dBM
+		hal_nrf_set_output_power(HAL_NRF_6DBM);                //if 0dbm then output power is at 0dBM and setting it to -6dBM
 	}
-	if(power_flag == flag_6DBM)
+	else if(power_flag == flag_6DBM)
 	{
-		hal_nrf_set_output_power(HAL_NRF_12DBM); //if 6dbm then output power is at 6dBM and setting it to -12dBM
+		hal_nrf_set_output_power(HAL_NRF_12DBM);        //if 6dbm then output power is at 6dBM and setting it to -12dBM
 	}
-	if(power_flag == flag_12DBM)
-	{
-		hal_nrf_set_output_power(HAL_NRF_18DBM); //if 12dbm then output power is at 12dBM and setting it to -18dBM
+	else if(power_flag == flag_12DBM)
+	{		
+	    hal_nrf_set_output_power(HAL_NRF_18DBM); //if 12dbm then output power is at 12dBM and setting it to -18dBM
 	}
-	if(power_flag == flag_18DBM)
+	else if(power_flag == flag_18DBM)
 	{
-		asm volatile ("nop\n");                 //if 18dbm then output power is at 18dBM so do nothing.
+		asm volatile ("nop\n");          //if 18dbm then output power is at 18dBM so do nothing.
 	}
 }
 // FUNCTION      : increase_op_power
@@ -182,20 +182,20 @@ void increase_op_power()
 {
 	if(power_flag == flag_6DBM)
 	{
-		hal_nrf_set_output_power (HAL_NRF_0DBM); //if 6dbm then output power is at 6dBM and setting it to 0dBM
+		hal_nrf_set_output_power (HAL_NRF_0DBM);               //if 6dbm then output power is at 6dBM and setting it to 0dBM
 	}
-	if(power_flag == flag_12DBM)
+	else if(power_flag == flag_12DBM)
 	{
-		hal_nrf_set_output_power(HAL_NRF_6DBM); //if 12dbm then output power is at 12dBM and setting it to 6dBM
+		hal_nrf_set_output_power(HAL_NRF_6DBM);         //if 12dbm then output power is at 12dBM and setting it to 6dBM
 	}
-	if(power_flag == flag_18DBM)
+	else if(power_flag == flag_18DBM)
 	{
 		hal_nrf_set_output_power(HAL_NRF_12DBM); //if 18dbm then output power is at 18dBM and setting it to 12dBM
 	}
-	if(power_flag == flag_0DBM)
+	else if(power_flag == flag_0DBM)
 	{
-		asm volatile ("nop\n");                  //if 0dbm then output power is at 0dBM so do nothing.
-	}
+		asm volatile ("nop\n");           //if 0dbm then output power is at 0dBM so do nothing.
+	}	
 }
 
 /********************************************************
@@ -205,7 +205,7 @@ ParserReturnVal_t CmdRFdatarate(int mode)
 {
 	int rc;
 	uint16_t value;
-  	if(mode != CMD_INTERACTIVE) return CmdReturnOk;
+  if(mode != CMD_INTERACTIVE) return CmdReturnOk;
 	rc = fetch_uint16_arg(&value);
 	if(rc)
 	{
@@ -215,21 +215,20 @@ ParserReturnVal_t CmdRFdatarate(int mode)
 	if(value == 250)
 	{
 		setDataRate(DATA_RATE_250KBPS);
-	}
-	if(value == 1)
+	  }
+	else if(value == 1)
 	{
 		setDataRate(DATA_RATE_1MBPS);
 	}
-	if(value ==2)
+	else if(value ==2)
 	{
 		setDataRate(DATA_RATE_2MBPS);
 	}
-	if(value != 250 || 1 || 2)
+	else if(value != 250 || 1 || 2)
 	{
 		printf("wrong parameter for datarate has selected\n");
-		return CmdReturnOk;
 	}
-  	return CmdReturnOk;
+	return CmdReturnOk;
 }
 ADD_CMD("datarate",CmdRFdatarate,"<250> <1> <2>   Set RF datarate")
 
@@ -243,10 +242,10 @@ ParserReturnVal_t CmdRFdatachannel(int mode)
   	if(mode != CMD_INTERACTIVE) return CmdReturnOk;
 	rc = fetch_uint16_arg(&value);
 	if(rc)
-	{
+	  {
 		printf("please supply <0-127> \n");
 		return CmdReturnBadParameter1;
-	}
+	  }
 	if(value <= 127 && value >=2)
 	{
 		hal_nrf_set_rf_channel(value);
@@ -277,24 +276,23 @@ ParserReturnVal_t CmdRFop(int mode)
 	{
 		hal_nrf_set_output_power(HAL_NRF_0DBM);
 	}
-	if(value == 6)
+	else if(value == 6)
 	{
 		hal_nrf_set_output_power(HAL_NRF_6DBM);
 	}
-	if(value == 12)
+	else if(value == 12)
 	{
-		hal_nrf_set_output_power(HAL_NRF_12DBM);
+	   hal_nrf_set_output_power(HAL_NRF_12DBM);
 	}
-	if(value == 18)
+	else if(value == 18)
 	{
 		hal_nrf_set_output_power(HAL_NRF_18DBM);
-	}	
-	if(value != 0 || 6 || 12 || 18)
+	}  	
+	else if(value != 0 || 6 || 12 || 18)
 	{
 		printf("wrong parameter for output power has selected\n");
-		return CmdReturnOk;
 	}
-  	return CmdReturnOk;
+  return CmdReturnOk;
 }
 ADD_CMD("power",CmdRFop,"<0> <6> <12> <18>  Set RF output power of transmitter")
 
@@ -400,7 +398,7 @@ ParserReturnVal_t Cmdtxaddr(int mode)
 
 	if(mode != CMD_INTERACTIVE) return CmdReturnOk;
 
-	fetch_uint16_arg(&value[0]);  //store 16-bit values into value array from command line.
+	fetch_uint16_arg(&value[0]);        //store 16-bit values into value array from command line.
 	fetch_uint16_arg(&value[1]);
 	fetch_uint16_arg(&value[2]);
 	fetch_uint16_arg(&value[3]);
@@ -414,7 +412,7 @@ ParserReturnVal_t Cmdtxaddr(int mode)
 	temp_ptr4 = (uint8_t *) &value[4];
 	temp_ptr5 = (uint8_t *) &value[5];
 
-	tx_addr[0] = *temp_ptr0;          //transferring uint8_t pointer data to uint8_t pipe_array.
+	tx_addr[0] = *temp_ptr0;           //transferring uint8_t pointer data to uint8_t pipe_array.
 	tx_addr[1] = *temp_ptr1;
 	tx_addr[2] = *temp_ptr2;
 	tx_addr[3] = *temp_ptr3;
