@@ -6,4 +6,4 @@ This Algorithm enables the network nodes to relay packets to link source and des
 Dynamic routing tables are periodically exchanged to keep track of all available nodes and their associated gateways.
 An algorithm is designed to find the best route using the number of hops as a key metric.
 
-Future_Work is done by "Mohana Velisetti" which lays the infrastructure for those who want to implement this system in bigger projects that include more transport layer features. Note that the code in the Future_Work folder has not been tested. It only provides a starting point for other interseted developers.
+Future_Work is done by "Mohana Velisetti" which lays the infrastructure for those who want to implement this system in bigger projects that include more transport layer features. Note that the code in the Future_Work folder has not been tested. It only provides a starting point for other interested developers.
